@@ -29,17 +29,23 @@ jobs:
       # ---------------------------------------------------------------
       - name: Select Xcode 26
         run: |
-          # Verify Xcode 26 is available on the runner before selecting it.
-          # If this step fails, check the runner image README linked above
-          # and update the path (e.g. Xcode_26.1.app) accordingly.
-          if [ -d /Applications/Xcode_26.app ]; then
-            sudo xcode-select -s /Applications/Xcode_26.app/Contents/Developer
-          else
-            echo "::error::Xcode 26 not found at /Applications/Xcode_26.app"
+          # Dynamically pick the latest Xcode 26.x installed on the runner.
+          # Matches bare Xcode_26.app as well as versioned paths like
+          # Xcode_26.3.0.app, sorted by version so the highest wins.
+          XCODE26=$(ls /Applications/ \
+            | grep -E '^Xcode_26(\.[0-9]+)*\.app$' \
+            | sort -t. -k1,1 -k2,2n -k3,3n -k4,4n \
+            | tail -1)
+
+          if [ -z "$XCODE26" ]; then
+            echo "::error::No Xcode 26.x installation found in /Applications/"
             echo "Available Xcode installations:"
-            ls /Applications/ | grep Xcode
+            ls /Applications/ | grep -i xcode
             exit 1
           fi
+
+          echo "Using $XCODE26"
+          sudo xcode-select -s "/Applications/$XCODE26/Contents/Developer"
           xcodebuild -version
 
       - name: Install XcodeGen
