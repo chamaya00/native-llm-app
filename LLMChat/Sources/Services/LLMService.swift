@@ -32,7 +32,10 @@ final class LLMService {
 
     func isAvailable() async -> Bool {
 #if canImport(FoundationModels)
-        return LanguageModelSession.isSupported
+        if case .available = SystemLanguageModel.default.availability {
+            return true
+        }
+        return false
 #else
         // Simulator / SDK pre-iOS 26: return false so UI shows unavailability banner
         return false
@@ -46,7 +49,7 @@ final class LLMService {
     /// - Returns: The assistant's response string.
     func generateResponse(prompt: String, history: some Collection<Message>) async throws -> String {
 #if canImport(FoundationModels)
-        guard LanguageModelSession.isSupported else {
+        guard case .available = SystemLanguageModel.default.availability else {
             throw LLMError.unsupportedDevice
         }
 
