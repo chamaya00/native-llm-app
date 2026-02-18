@@ -1,0 +1,74 @@
+name: Deploy to TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: "Release notes for this build"
+        required: false
+        default: "Bug fixes and improvements"
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  deploy:
+    name: Deploy to TestFlight
+    runs-on: macos-15
+
+    environment: testflight
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+          working-directory: LLMChat
+
+      - name: Install Fastlane
+        working-directory: LLMChat
+        run: bundle install
+
+      - name: Set up SSH for Match
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.MATCH_DEPLOY_KEY }}
+
+      - name: Generate Xcode project
+        working-directory: LLMChat
+        run: xcodegen generate --spec project.yml
+
+      - name: Run Fastlane beta lane
+        working-directory: LLMChat
+        env:
+          APP_IDENTIFIER: ${{ secrets.APP_IDENTIFIER }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APP_STORE_TEAM_ID: ${{ secrets.APP_STORE_TEAM_ID }}
+          ITC_TEAM_ID: ${{ secrets.ITC_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          RELEASE_NOTES: ${{ github.event.inputs.release_notes || 'Bug fixes and improvements' }}
+        run: bundle exec fastlane beta
+
+      - name: Upload IPA artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LLMChat-${{ github.ref_name }}.ipa
+          path: LLMChat/build/*.ipa
+          retention-days: 30
