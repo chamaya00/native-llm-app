@@ -82,7 +82,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            | xcpretty
+            | bundle exec xcpretty
 
       - name: Upload build logs on failure
         if: failure()
