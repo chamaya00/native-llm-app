@@ -80,11 +80,26 @@ platform :ios do
       is_key_content_base64: false
     )
 
-    # Sync certificates and provisioning profiles via match
+    # Create a dedicated CI keychain so codesign never blocks waiting for
+    # interactive keychain unlock (the default system keychain requires UI).
+    keychain_name = "ci-signing.keychain"
+    keychain_password = SecureRandom.hex(20)
+    create_keychain(
+      name: keychain_name,
+      password: keychain_password,
+      default_keychain: true,
+      unlock: true,
+      timeout: 3600,
+      lock_when_sleeps: false
+    )
+
+    # Sync certificates and provisioning profiles via match into the CI keychain
     match(
       type: "appstore",
       app_identifier: ENV["APP_IDENTIFIER"],
-      readonly: true
+      readonly: true,
+      keychain_name: keychain_name,
+      keychain_password: keychain_password
     )
 
     generate_project
@@ -119,5 +134,8 @@ platform :ios do
       notify_external_testers: false,
       changelog: ENV["RELEASE_NOTES"] || "Bug fixes and improvements"
     )
+  ensure
+    # Remove the temporary keychain regardless of success or failure
+    delete_keychain(name: keychain_name) if keychain_name
   end
 end
