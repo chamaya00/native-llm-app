@@ -7,6 +7,9 @@ on:
       - "LLMChat/project.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   generate:
     name: Generate .xcodeproj
@@ -14,7 +17,7 @@ jobs:
 
     env:
       # Default values for XcodeGen env var expansion in project.yml
-      APP_IDENTIFIER: com.example.llmchat
+      APP_IDENTIFIER: com.charlesamaya.llmchat
 
     steps:
       - name: Checkout repository
