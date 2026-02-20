@@ -12,6 +12,10 @@ jobs:
     name: Generate .xcodeproj
     runs-on: macos-15
 
+    env:
+      # Default values for XcodeGen env var expansion in project.yml
+      APP_IDENTIFIER: com.example.llmchat
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
