@@ -28,7 +28,7 @@ enum LLMError: LocalizedError {
     }
 }
 
-final class LLMService {
+final class LLMService: Sendable {
 
     func isAvailable() async -> Bool {
 #if canImport(FoundationModels)
