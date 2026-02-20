@@ -22,7 +22,7 @@ targets:
     sources:
       - Sources
     resources:
-      - Resources
+      - Resources/Assets.xcassets
     settings:
       base:
         PRODUCT_NAME: LLMChat
