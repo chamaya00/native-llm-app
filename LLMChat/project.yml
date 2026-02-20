@@ -31,5 +31,3 @@ targets:
         CODE_SIGN_STYLE: Automatic
     entitlements:
       path: LLMChat.entitlements
-      properties:
-        com.apple.developer.foundation-models.inference: true
