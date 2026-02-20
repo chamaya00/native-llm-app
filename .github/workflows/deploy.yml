@@ -18,14 +18,43 @@ jobs:
 
     environment: testflight
 
+    env:
+      APP_IDENTIFIER: ${{ secrets.APP_IDENTIFIER }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APP_STORE_TEAM_ID: ${{ secrets.APP_STORE_TEAM_ID }}
+      DEVELOPMENT_TEAM: ${{ secrets.APP_STORE_TEAM_ID }}
+      ITC_TEAM_ID: ${{ secrets.ITC_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+      RELEASE_NOTES: ${{ github.event.inputs.release_notes || 'Bug fixes and improvements' }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Select Xcode version
-        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
+      - name: Select Xcode 26
+        run: |
+          # Dynamically pick the latest Xcode 26.x installed on the runner.
+          XCODE26=$(ls /Applications/ \
+            | grep -E '^Xcode_26(\.[0-9]+)*\.app$' \
+            | sort -t. -k1,1 -k2,2n -k3,3n -k4,4n \
+            | tail -1)
+
+          if [ -z "$XCODE26" ]; then
+            echo "::error::No Xcode 26.x installation found in /Applications/"
+            echo "Available Xcode installations:"
+            ls /Applications/ | grep -i xcode
+            exit 1
+          fi
+
+          echo "Using $XCODE26"
+          sudo xcode-select -s "/Applications/$XCODE26/Contents/Developer"
+          xcodebuild -version
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -46,23 +75,8 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.MATCH_DEPLOY_KEY }}
 
-      - name: Generate Xcode project
-        working-directory: LLMChat
-        run: xcodegen generate --spec project.yml
-
       - name: Run Fastlane beta lane
         working-directory: LLMChat
-        env:
-          APP_IDENTIFIER: ${{ secrets.APP_IDENTIFIER }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APP_STORE_TEAM_ID: ${{ secrets.APP_STORE_TEAM_ID }}
-          ITC_TEAM_ID: ${{ secrets.ITC_TEAM_ID }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
-          RELEASE_NOTES: ${{ github.event.inputs.release_notes || 'Bug fixes and improvements' }}
         run: bundle exec fastlane beta
 
       - name: Upload IPA artifact

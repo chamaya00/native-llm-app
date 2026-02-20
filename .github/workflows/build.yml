@@ -15,6 +15,10 @@ jobs:
     # https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md
     runs-on: macos-15
 
+    env:
+      # Default bundle ID for CI builds (no signing needed for simulator)
+      APP_IDENTIFIER: com.example.llmchat
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
