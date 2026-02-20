@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 
+@MainActor
 @Observable
 final class ChatViewModel {
     private(set) var messages: [Message] = []
@@ -11,7 +12,7 @@ final class ChatViewModel {
     private let llmService = LLMService()
 
     init() {
-        Task { @MainActor in
+        Task {
             isModelUnavailable = !(await llmService.isAvailable())
             if isModelUnavailable {
                 return
@@ -23,7 +24,6 @@ final class ChatViewModel {
         }
     }
 
-    @MainActor
     func sendMessage(_ text: String) async {
         guard !text.isEmpty, !isGenerating else { return }
 
