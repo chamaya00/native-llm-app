@@ -17,7 +17,7 @@ jobs:
 
     env:
       # Default bundle ID for CI builds (no signing needed for simulator)
-      APP_IDENTIFIER: com.example.llmchat
+      APP_IDENTIFIER: com.charlesamaya.llmchat
 
     steps:
       - name: Checkout repository
