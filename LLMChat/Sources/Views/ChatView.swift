@@ -12,12 +12,23 @@ struct ChatView: View {
                     UnavailableView()
                 } else {
                     messageList
+                    if viewModel.isContextWindowExceeded {
+                        contextWindowBanner
+                    }
                     Divider()
                     inputBar
                 }
             }
             .navigationTitle("LLM Chat")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { viewModel.clearConversation() }) {
+                        Label("New Chat", systemImage: "square.and.pencil")
+                    }
+                    .disabled(viewModel.isGenerating)
+                }
+            }
         }
     }
 
@@ -51,6 +62,33 @@ struct ChatView: View {
         }
     }
 
+    private var contextWindowBanner: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .foregroundStyle(.orange)
+                Text("Context window full")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                Spacer()
+                Button("New Chat") {
+                    viewModel.clearConversation()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+            Text("This conversation is too long for the model. Start a new chat to continue.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(Color.orange.opacity(0.12))
+        .overlay(alignment: .top) {
+            Divider().overlay(Color.orange.opacity(0.4))
+        }
+    }
+
     private var inputBar: some View {
         HStack(spacing: 12) {
             TextField("Message", text: $inputText, axis: .vertical)
@@ -61,6 +99,7 @@ struct ChatView: View {
                 .padding(.vertical, 8)
                 .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 20))
+                .disabled(viewModel.isContextWindowExceeded)
                 .onSubmit {
                     sendMessage()
                 }
@@ -78,7 +117,9 @@ struct ChatView: View {
     }
 
     private var canSend: Bool {
-        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !viewModel.isGenerating
+        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !viewModel.isGenerating
+            && !viewModel.isContextWindowExceeded
     }
 
     private func sendMessage() {
