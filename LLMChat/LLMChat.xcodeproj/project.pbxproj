@@ -13,12 +13,14 @@
 		5F035FF499869F26BAA5603B /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5171AE96D8CC3C3FD7256FCB /* Message.swift */; };
 		6D07D61093866E1C8C0252BA /* LLMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A15B4162CD9DDF08D04694 /* LLMService.swift */; };
 		871BBF9054F9B1A4EEDDE352 /* LLMChatApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DED8AD4E094E80E01DC0991B /* LLMChatApp.swift */; };
+		CC11223344556677CC112233 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BB11223344556677BB112233 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		5171AE96D8CC3C3FD7256FCB /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
 		62EA15DA880315E4CD9E2ED8 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		B944981633EC4A33C290CC59 /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
+		BB11223344556677BB112233 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DED8AD4E094E80E01DC0991B /* LLMChatApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMChatApp.swift; sourceTree = "<group>"; };
 		E282CEEE0862240177B85A70 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		F3A15B4162CD9DDF08D04694 /* LLMService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMService.swift; sourceTree = "<group>"; };
@@ -87,10 +89,19 @@
 			path = Sources;
 			sourceTree = "<group>";
 		};
+		AA11223344556677AA112233 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				BB11223344556677BB112233 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		FBF7F880C33DBE495C576313 = {
 			isa = PBXGroup;
 			children = (
 				DD4FF8FE52B3F7AD340DBC0B /* Sources */,
+				AA11223344556677AA112233 /* Resources */,
 				758D8BD8D89F5625905717E5 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -102,6 +113,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1CDFDED1EFBF0A7871F51684 /* Build configuration list for PBXNativeTarget "LLMChat" */;
 			buildPhases = (
+				DD11223344556677DD112233 /* Resources */,
 				80713462ACF3C5605CF96016 /* Sources */,
 			);
 			buildRules = (
@@ -148,6 +160,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		DD11223344556677DD112233 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CC11223344556677CC112233 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		80713462ACF3C5605CF96016 /* Sources */ = {
