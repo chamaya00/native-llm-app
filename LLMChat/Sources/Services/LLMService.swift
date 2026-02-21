@@ -15,6 +15,7 @@ enum LLMError: LocalizedError {
     case modelUnavailable
     case generationFailed(String)
     case unsupportedDevice
+    case contextWindowExceeded
 
     var errorDescription: String? {
         switch self {
@@ -24,6 +25,8 @@ enum LLMError: LocalizedError {
             return "Response generation failed: \(reason)"
         case .unsupportedDevice:
             return "This device does not support on-device AI. iOS 26+ with compatible hardware is required."
+        case .contextWindowExceeded:
+            return "The conversation has reached the model's context window limit."
         }
     }
 }
@@ -76,6 +79,15 @@ final class LLMService: Sendable {
             let response = try await session.respond(to: fullPrompt)
             return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
+            // FoundationModels throws a specific error when the prompt exceeds the
+            // model's context window. Check by description until the SDK stabilises.
+            let description = error.localizedDescription.lowercased()
+            let isContextError = description.contains("context") &&
+                (description.contains("length") || description.contains("limit") ||
+                 description.contains("window") || description.contains("exceed"))
+            if isContextError {
+                throw LLMError.contextWindowExceeded
+            }
             throw LLMError.generationFailed(error.localizedDescription)
         }
 #else
