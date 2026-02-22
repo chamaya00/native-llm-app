@@ -44,7 +44,16 @@ actor LLMService {
         case .available:
             return nil
         case .unavailable(let reason):
-            return reason.localizedDescription
+            switch reason {
+            case .deviceNotEligible:
+                return "This device is not eligible for Apple Intelligence."
+            case .appleIntelligenceNotEnabled:
+                return "Apple Intelligence is not enabled. Enable it in Settings > Apple Intelligence & Siri."
+            case .modelNotReady:
+                return "The on-device AI model is not ready yet. It may still be downloading."
+            @unknown default:
+                return "The on-device language model is unavailable."
+            }
         }
 #else
         return "Foundation Models is not available in the current SDK. A physical device running iOS 26 with Apple Intelligence is required."
@@ -88,7 +97,7 @@ actor LLMService {
         } catch LanguageModelSession.GenerationError.exceededContextWindowSize {
             // Recover: condense transcript to first entry (system instructions) + last entry,
             // then surface the error so the caller can ask the user to resend.
-            let entries = s.transcript.entries
+            let entries = Array(s.transcript)
             var condensed: [Transcript.Entry] = []
             if let first = entries.first { condensed.append(first) }
             if entries.count > 1, let last = entries.last { condensed.append(last) }
