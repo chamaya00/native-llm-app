@@ -9,11 +9,11 @@ struct ChatView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 if viewModel.isModelUnavailable {
-                    UnavailableView()
+                    UnavailableView(reason: viewModel.unavailabilityReason)
                 } else {
                     messageList
-                    if viewModel.isContextWindowExceeded {
-                        contextWindowBanner
+                    if let errorMessage = viewModel.errorMessage {
+                        errorBanner(message: errorMessage)
                     }
                     Divider()
                     inputBar
@@ -42,8 +42,16 @@ struct ChatView: View {
                     }
 
                     if viewModel.isGenerating {
-                        TypingIndicatorView()
-                            .id("typing-indicator")
+                        if viewModel.streamingContent.isEmpty {
+                            TypingIndicatorView()
+                                .id("typing-indicator")
+                        } else {
+                            MessageBubble(message: Message(
+                                role: .assistant,
+                                content: viewModel.streamingContent
+                            ))
+                            .id("streaming-bubble")
+                        }
                     }
                 }
                 .padding(.horizontal)
@@ -59,27 +67,22 @@ struct ChatView: View {
                     }
                 }
             }
+            .onChange(of: viewModel.streamingContent) {
+                withAnimation {
+                    proxy.scrollTo("streaming-bubble", anchor: .bottom)
+                }
+            }
         }
     }
 
-    private var contextWindowBanner: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.circle.fill")
-                    .foregroundStyle(.orange)
-                Text("Context window full")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                Spacer()
-                Button("New Chat") {
-                    viewModel.clearConversation()
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            }
-            Text("This conversation is too long for the model. Start a new chat to continue.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    private func errorBanner(message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.orange)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+            Spacer()
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
@@ -99,7 +102,6 @@ struct ChatView: View {
                 .padding(.vertical, 8)
                 .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 20))
-                .disabled(viewModel.isContextWindowExceeded)
                 .onSubmit {
                     sendMessage()
                 }
@@ -119,7 +121,6 @@ struct ChatView: View {
     private var canSend: Bool {
         !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !viewModel.isGenerating
-            && !viewModel.isContextWindowExceeded
     }
 
     private func sendMessage() {
@@ -141,6 +142,8 @@ struct ChatView: View {
 }
 
 struct UnavailableView: View {
+    let reason: String?
+
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -151,7 +154,7 @@ struct UnavailableView: View {
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("This device does not support on-device language model inference. Apple's Foundation Models framework requires a compatible device running iOS 26 or later.")
+            Text(reason ?? "This device does not support on-device language model inference. Apple's Foundation Models framework requires a compatible device running iOS 26 or later.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
