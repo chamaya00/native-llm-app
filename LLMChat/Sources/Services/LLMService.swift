@@ -1,12 +1,5 @@
 import Foundation
 
-// NOTE: FoundationModels is available in iOS 26+. The import and API usage below
-// follows the Apple Foundation Models framework design. When Xcode 26 SDK is
-// available, ensure the import resolves correctly.
-//
-// STUB: If FoundationModels is not yet available in your SDK, replace the body
-// of generateResponse() with a mock implementation for testing.
-
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -26,76 +19,93 @@ enum LLMError: LocalizedError {
         case .unsupportedDevice:
             return "This device does not support on-device AI. iOS 26+ with compatible hardware is required."
         case .contextWindowExceeded:
-            return "The conversation has reached the model's context window limit."
+            return "The conversation was condensed due to context window limits. Please resend your last message."
         }
     }
 }
 
-final class LLMService: Sendable {
+actor LLMService {
 
-    func isAvailable() async -> Bool {
 #if canImport(FoundationModels)
-        if case .available = SystemLanguageModel.default.availability {
-            return true
+    private var session: LanguageModelSession?
+
+    private func getOrCreateSession() -> LanguageModelSession {
+        if let existing = session { return existing }
+        let new = LanguageModelSession(instructions: "You are a helpful assistant.")
+        session = new
+        return new
+    }
+#endif
+
+    /// Returns a localised description of why the model is unavailable, or nil if it is available.
+    func availabilityReason() -> String? {
+#if canImport(FoundationModels)
+        switch SystemLanguageModel.default.availability {
+        case .available:
+            return nil
+        case .unavailable(let reason):
+            return reason.localizedDescription
         }
+#else
+        return "Foundation Models is not available in the current SDK. A physical device running iOS 26 with Apple Intelligence is required."
+#endif
+    }
+
+    func isAvailable() -> Bool {
+#if canImport(FoundationModels)
+        if case .available = SystemLanguageModel.default.availability { return true }
         return false
 #else
-        // Simulator / SDK pre-iOS 26: return false so UI shows unavailability banner
         return false
 #endif
     }
 
-    /// Generate a response for the given prompt with optional conversation history.
-    /// - Parameters:
-    ///   - prompt: The latest user message.
-    ///   - history: Prior messages for context (all but the last user message).
-    /// - Returns: The assistant's response string.
-    func generateResponse(prompt: String, history: some Collection<Message>) async throws -> String {
+    /// Reset the session (call when starting a new conversation).
+    func resetSession() {
 #if canImport(FoundationModels)
-        guard case .available = SystemLanguageModel.default.availability else {
-            throw LLMError.unsupportedDevice
-        }
+        session = nil
+#endif
+    }
 
-        // Build a LanguageModelSession and send the conversation.
-        // FoundationModels uses a prompt / context API; we concatenate history
-        // as a structured transcript to give the model conversational context.
-        let session = LanguageModelSession()
+    /// Stream a response for `prompt`. The session manages the transcript automatically;
+    /// do not pass conversation history — call this once per user turn, reusing the actor
+    /// across the entire conversation.
+    ///
+    /// `onPartial` is called on each streamed chunk with the accumulated text so far.
+    func streamResponse(
+        prompt: String,
+        onPartial: @Sendable @escaping (String) -> Void
+    ) async throws {
+#if canImport(FoundationModels)
+        guard isAvailable() else { throw LLMError.unsupportedDevice }
 
-        // Format conversation history as a context string prepended to the prompt.
-        let contextLines = history.map { msg -> String in
-            let roleLabel = msg.role == .user ? "User" : "Assistant"
-            return "\(roleLabel): \(msg.content)"
-        }
-
-        let fullPrompt: String
-        if contextLines.isEmpty {
-            fullPrompt = prompt
-        } else {
-            let context = contextLines.joined(separator: "\n")
-            fullPrompt = "\(context)\nUser: \(prompt)\nAssistant:"
-        }
-
+        let s = getOrCreateSession()
         do {
-            let response = try await session.respond(to: fullPrompt)
-            return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        } catch {
-            // FoundationModels throws a specific error when the prompt exceeds the
-            // model's context window. Check by description until the SDK stabilises.
-            let description = error.localizedDescription.lowercased()
-            let isContextError = description.contains("context") &&
-                (description.contains("length") || description.contains("limit") ||
-                 description.contains("window") || description.contains("exceed"))
-            if isContextError {
-                throw LLMError.contextWindowExceeded
+            let stream = s.streamResponse(to: prompt)
+            for try await partial in stream {
+                onPartial(partial.content)
             }
+        } catch LanguageModelSession.GenerationError.exceededContextWindowSize {
+            // Recover: condense transcript to first entry (system instructions) + last entry,
+            // then surface the error so the caller can ask the user to resend.
+            let entries = s.transcript.entries
+            var condensed: [Transcript.Entry] = []
+            if let first = entries.first { condensed.append(first) }
+            if entries.count > 1, let last = entries.last { condensed.append(last) }
+            session = LanguageModelSession(transcript: Transcript(entries: condensed))
+            throw LLMError.contextWindowExceeded
+        } catch {
             throw LLMError.generationFailed(error.localizedDescription)
         }
 #else
-        // --- STUB: FoundationModels not available in current SDK ---
-        // Replace this block with real implementation once iOS 26 SDK is available.
-        // For now, returns a mock response so the UI is testable in simulator.
-        try await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second simulated delay
-        return "This is a simulated response. The Apple Foundation Models framework requires a physical device running iOS 26 with Apple Intelligence capabilities. Please test on supported hardware."
+        // Simulator stub: emit words progressively so the streaming UI is exercisable.
+        let words = "This is a simulated streaming response. The Apple Foundation Models framework requires a physical device running iOS 26 with Apple Intelligence capabilities.".split(separator: " ")
+        var accumulated = ""
+        for word in words {
+            try await Task.sleep(nanoseconds: 80_000_000)  // ~80 ms per word
+            accumulated += (accumulated.isEmpty ? "" : " ") + word
+            onPartial(accumulated)
+        }
 #endif
     }
 }

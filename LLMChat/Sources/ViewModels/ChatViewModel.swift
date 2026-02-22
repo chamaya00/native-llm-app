@@ -7,55 +7,60 @@ final class ChatViewModel {
     private(set) var messages: [Message] = []
     private(set) var isGenerating = false
     private(set) var isModelUnavailable = false
+    private(set) var unavailabilityReason: String?
     private(set) var errorMessage: String?
-    private(set) var isContextWindowExceeded = false
+    private(set) var streamingContent: String = ""
 
     private let llmService = LLMService()
 
     init() {
         Task {
-            isModelUnavailable = !(await llmService.isAvailable())
-            if isModelUnavailable {
-                return
+            let reason = await llmService.availabilityReason()
+            isModelUnavailable = (reason != nil)
+            unavailabilityReason = reason
+            if !isModelUnavailable {
+                appendGreeting()
             }
-            appendGreeting()
         }
     }
 
     func clearConversation() {
         messages = []
         errorMessage = nil
-        isContextWindowExceeded = false
+        streamingContent = ""
+        Task { await llmService.resetSession() }
         appendGreeting()
     }
 
     func sendMessage(_ text: String) async {
-        guard !text.isEmpty, !isGenerating, !isContextWindowExceeded else { return }
+        guard !text.isEmpty, !isGenerating else { return }
 
-        let userMessage = Message(role: .user, content: text)
-        messages.append(userMessage)
+        messages.append(Message(role: .user, content: text))
         isGenerating = true
         errorMessage = nil
+        streamingContent = ""
 
         do {
-            let response = try await llmService.generateResponse(prompt: text, history: messages.dropLast())
-            let assistantMessage = Message(role: .assistant, content: response)
-            messages.append(assistantMessage)
+            // The session manages the transcript automatically; pass only the current prompt.
+            try await llmService.streamResponse(prompt: text) { [weak self] partial in
+                Task { @MainActor [weak self] in
+                    self?.streamingContent = partial
+                }
+            }
+            messages.append(Message(role: .assistant, content: streamingContent))
         } catch LLMError.contextWindowExceeded {
-            isContextWindowExceeded = true
+            // Service has already condensed the transcript and is ready to continue.
+            // Inform the user so they can resend their last message.
             errorMessage = LLMError.contextWindowExceeded.errorDescription
-            messages.append(Message(
-                role: .assistant,
-                content: "This conversation has reached the model's context window limit. Start a new chat to continue."
-            ))
         } catch {
             errorMessage = error.localizedDescription
             messages.append(Message(
                 role: .assistant,
-                content: "Sorry, I encountered an error: \(error.localizedDescription). Please try again."
+                content: "Sorry, I encountered an error. Please try again."
             ))
         }
 
+        streamingContent = ""
         isGenerating = false
     }
 
