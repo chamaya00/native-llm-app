@@ -11,6 +11,30 @@ patterns from the official developer documentation and WWDC 2025 sessions:
   https://developer.apple.com/videos/play/wwdc2025/301/
 - **Framework reference**
   https://developer.apple.com/documentation/FoundationModels#overview
+- **`LanguageModelSession` reference**
+  https://developer.apple.com/documentation/foundationmodels/languagemodelsession
+- **`SystemLanguageModel` reference**
+  https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel
+- **`Prompt` reference**
+  https://developer.apple.com/documentation/foundationmodels/prompt
+- **TN3193 – Managing the on-device foundation model's context window**
+  https://developer.apple.com/documentation/Technotes/tn3193-managing-the-on-device-foundation-model-s-context-window
+- **Guide – Generating Swift data structures with guided generation**
+  https://developer.apple.com/documentation/foundationmodels/generating-swift-data-structures-with-guided-generation
+- **Guide – Expanding generation with tool calling**
+  https://developer.apple.com/documentation/foundationmodels/expanding-generation-with-tool-calling
+- **Guide – Categorizing and organizing data with content tags**
+  https://developer.apple.com/documentation/foundationmodels/categorizing-and-organizing-data-with-content-tags
+- **Sample – Dynamic game content with guided generation and tools**
+  https://developer.apple.com/documentation/FoundationModels/generate-dynamic-game-content-with-guided-generation-and-tools
+- **Guide – Generating content and performing tasks with Foundation Models**
+  https://developer.apple.com/documentation/foundationmodels/generating-content-and-performing-tasks-with-foundation-models
+- **`Instructions` reference**
+  https://developer.apple.com/documentation/foundationmodels/instructions
+- **`Transcript` reference**
+  https://developer.apple.com/documentation/foundationmodels/transcript
+- **`GenerationOptions` reference**
+  https://developer.apple.com/documentation/foundationmodels/generationoptions
 
 ---
 
