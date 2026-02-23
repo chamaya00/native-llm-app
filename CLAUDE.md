@@ -27,6 +27,8 @@ patterns from the official developer documentation and WWDC 2025 sessions:
   https://developer.apple.com/documentation/foundationmodels/categorizing-and-organizing-data-with-content-tags
 - **Sample – Dynamic game content with guided generation and tools**
   https://developer.apple.com/documentation/FoundationModels/generate-dynamic-game-content-with-guided-generation-and-tools
+- **Guide – Generating content and performing tasks with Foundation Models**
+  https://developer.apple.com/documentation/foundationmodels/generating-content-and-performing-tasks-with-foundation-models
 
 ---
 
