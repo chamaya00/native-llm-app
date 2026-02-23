@@ -29,6 +29,12 @@ patterns from the official developer documentation and WWDC 2025 sessions:
   https://developer.apple.com/documentation/FoundationModels/generate-dynamic-game-content-with-guided-generation-and-tools
 - **Guide – Generating content and performing tasks with Foundation Models**
   https://developer.apple.com/documentation/foundationmodels/generating-content-and-performing-tasks-with-foundation-models
+- **`Instructions` reference**
+  https://developer.apple.com/documentation/foundationmodels/instructions
+- **`Transcript` reference**
+  https://developer.apple.com/documentation/foundationmodels/transcript
+- **`GenerationOptions` reference**
+  https://developer.apple.com/documentation/foundationmodels/generationoptions
 
 ---
 
