@@ -90,29 +90,29 @@ private struct WordCell: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 HStack {
                     Text(word.vietnamese)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.callout.weight(.semibold))
                         .foregroundStyle(isSelected ? .white : .primary)
                     Spacer()
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(.white)
-                            .font(.caption)
+                            .font(.footnote)
                     }
                 }
 
                 Text(word.english)
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(isSelected ? .white.opacity(0.85) : .secondary)
 
                 Text("\(word.partOfSpeech) · \(word.partOfSpeech.partOfSpeechVietnamese)")
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundStyle(isSelected ? .white.opacity(0.65) : Color(.tertiaryLabel))
                     .italic()
             }
-            .padding(12)
+            .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(isSelected ? Color.blue : Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
