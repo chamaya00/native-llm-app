@@ -189,7 +189,9 @@ actor LLMService {
                 wordEntry: word,
                 mnemonicVi: fc.mnemonicVi,
                 exampleEn: fc.exampleEn,
-                exampleVi: fc.exampleVi
+                exampleVi: fc.exampleVi,
+                phoneticVi: fc.phoneticVi,
+                phoneticEn: fc.phoneticEn
             )
         } catch LanguageModelSession.GenerationError.exceededContextWindowSize {
             tutorSession = nil

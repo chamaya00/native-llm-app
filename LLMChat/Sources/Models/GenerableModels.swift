@@ -31,6 +31,10 @@ struct GeneratedFlashcard {
     var exampleEn: String
     @Guide(description: "Vietnamese translation of the example sentence")
     var exampleVi: String
+    @Guide(description: "Phonetic pronunciation of the English word using Vietnamese phonemes, e.g. 'đề-li-shợs' for 'delicious'")
+    var phoneticVi: String
+    @Guide(description: "Intuitive English phonetic pronunciation using only common English letters with UPPERCASE for stressed syllables, e.g. 'deh-LIH-shus' for 'delicious'. No IPA symbols.")
+    var phoneticEn: String
 }
 
 // MARK: - Exercise Generation
