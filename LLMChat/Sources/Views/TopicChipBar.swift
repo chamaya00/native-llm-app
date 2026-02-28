@@ -12,20 +12,18 @@ struct TopicChipBar: View {
                         Haptics.impact(.medium)
                         onSelect(topic)
                     } label: {
-                        Label(topic.labelVi, systemImage: "")
-                            .labelStyle(.titleOnly)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.primary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(Color(.secondarySystemBackground))
-                            .clipShape(Capsule())
-                            .overlay(Capsule().stroke(Color.secondary.opacity(0.3), lineWidth: 1))
-                    }
-                    .overlay(alignment: .leading) {
-                        Text(topic.emoji)
-                            .font(.subheadline)
-                            .padding(.leading, 10)
+                        HStack(spacing: 4) {
+                            Text(topic.emoji)
+                                .font(.subheadline)
+                            Text(topic.labelVi)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.primary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.secondary.opacity(0.3), lineWidth: 1))
                     }
                     .transition(.asymmetric(
                         insertion: .move(edge: .bottom).combined(with: .opacity),
