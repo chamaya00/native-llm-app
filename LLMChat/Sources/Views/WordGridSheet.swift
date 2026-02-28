@@ -92,7 +92,7 @@ private struct WordCell: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(word.english)
+                    Text(word.vietnamese)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(isSelected ? .white : .primary)
                     Spacer()
@@ -103,11 +103,11 @@ private struct WordCell: View {
                     }
                 }
 
-                Text(word.vietnamese)
+                Text(word.english)
                     .font(.caption)
                     .foregroundStyle(isSelected ? .white.opacity(0.85) : .secondary)
 
-                Text(word.partOfSpeech)
+                Text("\(word.partOfSpeech) · \(word.partOfSpeech.partOfSpeechVietnamese)")
                     .font(.caption2)
                     .foregroundStyle(isSelected ? .white.opacity(0.65) : Color(.tertiaryLabel))
                     .italic()
@@ -123,5 +123,22 @@ private struct WordCell: View {
         }
         .buttonStyle(.plain)
         .animation(.tutorSpring, value: isSelected)
+    }
+}
+
+private extension String {
+    var partOfSpeechVietnamese: String {
+        switch self.lowercased() {
+        case "noun":         return "danh từ"
+        case "verb":         return "động từ"
+        case "adjective":    return "tính từ"
+        case "adverb":       return "trạng từ"
+        case "pronoun":      return "đại từ"
+        case "preposition":  return "giới từ"
+        case "conjunction":  return "liên từ"
+        case "interjection": return "thán từ"
+        case "phrase":       return "cụm từ"
+        default:             return self
+        }
     }
 }
