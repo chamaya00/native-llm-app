@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 struct FlashcardSheet: View {
     let flashcards: [Flashcard]
@@ -95,7 +96,7 @@ struct FlashcardSheet: View {
 
     private var bottomControls: some View {
         VStack(spacing: 12) {
-            Text(isFlipped ? "Vuốt để tiếp tục" : "Nhấn để lật thẻ")
+            Text(isFlipped ? "Vuốt để tiếp tục" : "Nhấn để xem tiếng Anh")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -169,12 +170,14 @@ private struct FlashcardView: View {
     let image: UIImage?
     let isFlipped: Bool
 
+    @StateObject private var speaker = CardSpeaker()
+
     var body: some View {
         ZStack {
             if !isFlipped {
-                frontFace
+                vietnameseFace
             } else {
-                backFace
+                englishFace
                     .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
             }
         }
@@ -182,25 +185,62 @@ private struct FlashcardView: View {
         .animation(.tutorSpring, value: isFlipped)
     }
 
-    // MARK: Front
+    // MARK: Vietnamese Face (shown first)
 
-    private var frontFace: some View {
+    private var vietnameseFace: some View {
         VStack(spacing: 20) {
-            // Image or shimmer placeholder
+            HStack {
+                languageBadge("VN", color: .red)
+                Spacer()
+            }
+
             if let img = image {
                 Image(uiImage: img)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(height: 180)
+                    .frame(height: 160)
                     .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
                 gradientPlaceholder
-                    .frame(height: 180)
+                    .frame(height: 160)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
 
             VStack(spacing: 6) {
+                Text(flashcard.wordEntry.vietnamese)
+                    .font(.largeTitle.weight(.bold))
+                Text(flashcard.wordEntry.partOfSpeech)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .italic()
+            }
+
+            Spacer()
+
+            Text("Nhấn để xem tiếng Anh")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity)
+        .frame(height: 400)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.1), radius: 12, x: 0, y: 4)
+    }
+
+    // MARK: English Face (shown after flip)
+
+    private var englishFace: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center) {
+                languageBadge("EN", color: .blue)
+                Spacer()
+                speakerButton
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
                 Text(flashcard.wordEntry.english)
                     .font(.largeTitle.weight(.bold))
                 Text(flashcard.wordEntry.partOfSpeech)
@@ -209,28 +249,32 @@ private struct FlashcardView: View {
                     .italic()
             }
 
-            Text("Nhấn để xem nghĩa")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-        }
-        .padding(24)
-        .frame(maxWidth: .infinity)
-        .frame(height: 380)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.1), radius: 12, x: 0, y: 4)
-    }
-
-    // MARK: Back
-
-    private var backFace: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(flashcard.wordEntry.vietnamese)
-                    .font(.title.weight(.bold))
-                Text(flashcard.wordEntry.english)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            // Phonetic guides
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Text("VN")
+                        .font(.system(size: 10, weight: .bold))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.red.opacity(0.12))
+                        .foregroundStyle(.red)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                    Text(flashcard.phoneticVi)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 6) {
+                    Text("EN")
+                        .font(.system(size: 10, weight: .bold))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.blue.opacity(0.12))
+                        .foregroundStyle(.blue)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                    Text(flashcard.phoneticEn)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                }
             }
 
             Divider()
@@ -254,13 +298,43 @@ private struct FlashcardView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: 380)
+        .frame(height: 400)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.1), radius: 12, x: 0, y: 4)
     }
 
-    // MARK: - Gradient Placeholder (Phase 3 fallback)
+    // MARK: - Speaker Button
+
+    private var speakerButton: some View {
+        Button {
+            speaker.speak(flashcard.wordEntry.english)
+        } label: {
+            Image(systemName: speaker.isSpeaking ? "speaker.wave.3.fill" : "speaker.2.fill")
+                .font(.title3)
+                .foregroundStyle(speaker.isSpeaking ? .blue : .secondary)
+                .contentTransition(.symbolEffect(.replace))
+        }
+    }
+
+    // MARK: - Language Badge
+
+    private func languageBadge(_ code: String, color: Color) -> some View {
+        Text(code)
+            .font(.system(size: 11, weight: .bold, design: .rounded))
+            .tracking(1)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.12))
+            .foregroundStyle(color)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(color.opacity(0.25), lineWidth: 1)
+            )
+    }
+
+    // MARK: - Gradient Placeholder
 
     private var gradientPlaceholder: some View {
         let hue = Double(abs(flashcard.wordEntry.english.hashValue) % 360) / 360.0
@@ -273,11 +347,41 @@ private struct FlashcardView: View {
             endPoint: .bottomTrailing
         )
         .overlay(
-            VStack {
-                Text(flashcard.wordEntry.english.prefix(1).uppercased())
-                    .font(.system(size: 64, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.6))
-            }
+            Text(flashcard.wordEntry.english.prefix(1).uppercased())
+                .font(.system(size: 56, weight: .bold))
+                .foregroundStyle(.white.opacity(0.6))
         )
+    }
+}
+
+// MARK: - Text-to-Speech Helper
+
+private final class CardSpeaker: NSObject, AVSpeechSynthesizerDelegate, ObservableObject {
+    private let synthesizer = AVSpeechSynthesizer()
+    @Published var isSpeaking = false
+
+    override init() {
+        super.init()
+        synthesizer.delegate = self
+    }
+
+    func speak(_ text: String) {
+        if synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .immediate)
+            return
+        }
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        utterance.rate = 0.42
+        synthesizer.speak(utterance)
+        DispatchQueue.main.async { self.isSpeaking = true }
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        DispatchQueue.main.async { self.isSpeaking = false }
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        DispatchQueue.main.async { self.isSpeaking = false }
     }
 }

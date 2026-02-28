@@ -102,18 +102,59 @@ struct Flashcard: Identifiable {
     let mnemonicVi: String
     let exampleEn: String
     let exampleVi: String
+    let phoneticVi: String  // pronunciation using Vietnamese phonemes
+    let phoneticEn: String  // intuitive English phonetics with CAPS for stress
     var image: UIImage?
 
     // STUB
     static func stub(for word: WordEntry) -> Flashcard {
-        Flashcard(
+        let (pVi, pEn) = stubPhonetics[word.english.lowercased()] ?? ("(\(word.english))", "(\(word.english))")
+        return Flashcard(
             id: UUID(),
             wordEntry: word,
             mnemonicVi: "Nhớ từ \"\(word.english)\" giống như \"\(word.vietnamese)\" — hãy tưởng tượng hình ảnh!",
             exampleEn: word.exampleSentence,
-            exampleVi: "Câu ví dụ bằng tiếng Việt cho \"\(word.vietnamese)\"."
+            exampleVi: "Câu ví dụ bằng tiếng Việt cho \"\(word.vietnamese)\".",
+            phoneticVi: pVi,
+            phoneticEn: pEn
         )
     }
+
+    private static let stubPhonetics: [String: (String, String)] = [
+        // Food
+        "delicious":    ("đề-li-shợs",          "deh-LIH-shus"),
+        "hungry":       ("hăng-gri",             "HUNG-gree"),
+        "cook":         ("cúc",                  "COOK"),
+        "recipe":       ("re-si-pi",             "RES-ih-pee"),
+        "ingredient":   ("in-gri-đi-ợt",         "in-GREE-dee-ent"),
+        "spicy":        ("xờ-pai-si",            "SPY-see"),
+        "taste":        ("tết",                  "TAYST"),
+        "meal":         ("min",                  "MEEL"),
+        "restaurant":   ("re-xờ-tơ-rần",         "RES-tuh-runt"),
+        "dessert":      ("đi-zợt",               "deh-ZURT"),
+        // Travel
+        "journey":      ("dơ-ni",                "JUR-nee"),
+        "passport":     ("pa-xờ-pót",            "PAS-port"),
+        "luggage":      ("lắc-gịt",              "LUG-ij"),
+        "departure":    ("đi-pa-chờ",            "deh-PAR-chur"),
+        "arrival":      ("ờ-rai-vồl",            "uh-RY-vul"),
+        "destination":  ("đe-xờ-ti-nê-shần",     "des-tih-NAY-shun"),
+        "explore":      ("ex-ploa",              "ex-PLOR"),
+        "souvenir":     ("xu-vờ-nia",            "soo-veh-NEER"),
+        "hotel":        ("hô-ten",               "hoh-TEL"),
+        "ticket":       ("tích-kịt",             "TIK-it"),
+        // Default
+        "hello":        ("hê-lô",                "heh-LOH"),
+        "thank you":    ("theng-kiu",            "THANK-yoo"),
+        "please":       ("pli",                  "PLEEZ"),
+        "sorry":        ("xo-ri",                "SOR-ee"),
+        "understand":   ("ăn-đơ-xtend",          "un-der-STAND"),
+        "practice":     ("pre-tịt",              "PRAK-tis"),
+        "learn":        ("lợn",                  "LURN"),
+        "speak":        ("xờ-pik",               "SPEEK"),
+        "repeat":       ("ri-pit",               "ree-PEET"),
+        "correct":      ("cờ-rét",               "kuh-REKT"),
+    ]
 }
 
 // MARK: - Exercise
