@@ -245,7 +245,7 @@ actor LLMService {
         guard isAvailable() else { throw LLMError.unsupportedDevice }
         let s = getOrCreateTutorSession(learnerName: learnerName)
         let wordList = words.map { "\($0.english) (\($0.vietnamese))" }.joined(separator: ", ")
-        let prompt = "Tạo 6 bài tập (2 cho mỗi từ) để luyện tập: \(wordList). Trộn các loại: fillBlank, multipleChoice, translate."
+        let prompt = "Tạo 6 bài tập (2 cho mỗi từ) để luyện tập: \(wordList). Trộn các loại: fillBlank, multipleChoice, translate. Câu hỏi có thể bằng tiếng Việt, nhưng đáp án và các lựa chọn PHẢI là tiếng Anh."
         do {
             let response = try await s.respond(to: prompt, generating: GeneratedPracticeRound.self)
             let limited = Array(words.prefix(3))
