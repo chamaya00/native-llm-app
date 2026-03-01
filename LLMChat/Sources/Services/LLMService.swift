@@ -145,6 +145,41 @@ actor LLMService {
 #endif
     }
 
+    // MARK: - Tutor greeting
+
+    /// Stream a personalised greeting from the tutor session.
+    func streamGreeting(learnerName: String, onPartial: @Sendable @escaping (String) -> Void) async throws {
+#if canImport(FoundationModels)
+        guard isAvailable() else { throw LLMError.unsupportedDevice }
+        let s = getOrCreateTutorSession(learnerName: learnerName)
+        let prompt = "Chào mừng \(learnerName) bắt đầu buổi học. Hãy gửi lời chào ngắn gọn bằng tiếng Việt và hỏi họ muốn học từ vựng về chủ đề gì hôm nay."
+        do {
+            let stream = s.streamResponse(to: prompt)
+            for try await partial in stream {
+                onPartial(partial.content)
+            }
+        } catch LanguageModelSession.GenerationError.exceededContextWindowSize {
+            let entries = Array(s.transcript)
+            var condensed: [Transcript.Entry] = []
+            if let first = entries.first { condensed.append(first) }
+            if entries.count > 1, let last = entries.last { condensed.append(last) }
+            tutorSession = LanguageModelSession(transcript: Transcript(entries: condensed))
+            throw LLMError.contextWindowExceeded
+        } catch {
+            throw LLMError.generationFailed(error.localizedDescription)
+        }
+#else
+        let greeting = "Xin chào \(learnerName)! 👋 Tôi là gia sư tiếng Anh của bạn. Hôm nay bạn muốn học từ vựng về chủ đề gì?"
+        let words = greeting.split(separator: " ")
+        var accumulated = ""
+        for word in words {
+            try await Task.sleep(nanoseconds: 80_000_000)
+            accumulated += (accumulated.isEmpty ? "" : " ") + word
+            onPartial(accumulated)
+        }
+#endif
+    }
+
     // MARK: - Phase 2: Tutor structured methods
 
     /// Generate 10 vocabulary words for a topic using guided generation.

@@ -72,12 +72,19 @@ final class ChatViewModel {
         isGenerating = true
         streamingContent = ""
 
-        // STUB: simulate streaming greeting
         let name = learnerProfile?.name ?? "bạn"
-        let greeting = "Xin chào \(name)! 👋 Tôi là gia sư tiếng Anh của bạn. Hôm nay bạn muốn học từ vựng về chủ đề gì?"
-        await streamFake(greeting)
+        do {
+            try await llmService.streamGreeting(learnerName: name) { [weak self] partial in
+                Task { @MainActor [weak self] in
+                    self?.streamingContent = partial
+                }
+            }
+        } catch {
+            let fallback = "Xin chào \(name)! 👋 Tôi là gia sư tiếng Anh của bạn. Hôm nay bạn muốn học từ vựng về chủ đề gì?"
+            streamingContent = fallback
+        }
 
-        messages.append(Message(role: .assistant, content: greeting))
+        messages.append(Message(role: .assistant, content: streamingContent))
         streamingContent = ""
         isGenerating = false
 
@@ -109,10 +116,12 @@ final class ChatViewModel {
         streamingContent = ""
         isGenerating = false
 
-        // STUB: simulate word generation delay
-        try? await Task.sleep(nanoseconds: 1_200_000_000)
-
-        currentWords = await llmService.streamWordsStub(for: topic)
+        let name = learnerProfile?.name ?? "bạn"
+        do {
+            currentWords = try await llmService.streamWords(topic: topic, learnerName: name)
+        } catch {
+            currentWords = WordEntry.stubWords(for: topic)
+        }
         selectedWords = []
         statusMessage = nil
 
@@ -137,10 +146,26 @@ final class ChatViewModel {
             content: "Tuyệt vời! Bạn đã chọn: \(wordsText). Tôi đang tạo thẻ học cho bạn... 📚"
         ))
 
-        // STUB: simulate flashcard generation
-        try? await Task.sleep(nanoseconds: 1_500_000_000)
-
-        flashcards = await llmService.generateFlashcardsStub(for: selectedWords)
+        let name = learnerProfile?.name ?? "bạn"
+        let llm = llmService
+        let wordsToProcess = selectedWords
+        do {
+            flashcards = try await withThrowingTaskGroup(of: (Int, Flashcard).self) { group in
+                for (i, word) in wordsToProcess.enumerated() {
+                    group.addTask {
+                        let card = try await llm.generateFlashcard(word: word, learnerName: name)
+                        return (i, card)
+                    }
+                }
+                var indexed: [(Int, Flashcard)] = []
+                for try await pair in group {
+                    indexed.append(pair)
+                }
+                return indexed.sorted { $0.0 < $1.0 }.map { $0.1 }
+            }
+        } catch {
+            flashcards = wordsToProcess.map { Flashcard.stub(for: $0) }
+        }
         statusMessage = nil
 
         withAnimation(.tutorSpring) {
@@ -160,10 +185,13 @@ final class ChatViewModel {
             content: "Bạn đã xem hết thẻ học rồi! Bây giờ hãy luyện tập để ghi nhớ từ vựng nhé 💪"
         ))
 
-        // STUB: simulate exercise generation
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
-
-        let exercises = await llmService.generateExercisesStub(for: selectedWords)
+        let name = learnerProfile?.name ?? "bạn"
+        let exercises: [Exercise]
+        do {
+            exercises = try await llmService.generateExercises(words: selectedWords, learnerName: name)
+        } catch {
+            exercises = Exercise.stubExercises(for: selectedWords)
+        }
         practiceRound = PracticeRound(exercises: exercises, results: [])
         currentExerciseIndex = 0
         currentFeedback = nil
@@ -218,15 +246,18 @@ final class ChatViewModel {
         guard let round = practiceRound else { return }
         let score = round.results.filter { $0.isCorrect }.count
 
-        // STUB: simulate feedback generation
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
+        let name = learnerProfile?.name ?? "bạn"
+        let feedback: RoundFeedback
+        do {
+            feedback = try await llmService.generateFeedback(
+                results: round.results,
+                exercises: round.exercises,
+                learnerName: name
+            )
+        } catch {
+            feedback = RoundFeedback.stub(score: score, results: round.results, exercises: round.exercises)
+        }
         statusMessage = nil
-
-        let feedback = await llmService.generateFeedbackStub(
-            score: score,
-            results: round.results,
-            exercises: round.exercises
-        )
         currentFeedback = feedback
 
         let scoreEmoji = score == round.exercises.count ? "🎉" : score >= round.exercises.count / 2 ? "👍" : "📖"
