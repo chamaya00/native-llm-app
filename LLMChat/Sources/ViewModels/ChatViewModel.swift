@@ -149,22 +149,22 @@ final class ChatViewModel {
         let name = learnerProfile?.name ?? "bạn"
         let llm = llmService
         let wordsToProcess = selectedWords
-        do {
-            flashcards = try await withThrowingTaskGroup(of: (Int, Flashcard).self) { group in
-                for (i, word) in wordsToProcess.enumerated() {
-                    group.addTask {
+        flashcards = await withTaskGroup(of: (Int, Flashcard).self) { group in
+            for (i, word) in wordsToProcess.enumerated() {
+                group.addTask {
+                    do {
                         let card = try await llm.generateFlashcard(word: word, learnerName: name)
                         return (i, card)
+                    } catch {
+                        return (i, Flashcard.stub(for: word))
                     }
                 }
-                var indexed: [(Int, Flashcard)] = []
-                for try await pair in group {
-                    indexed.append(pair)
-                }
-                return indexed.sorted { $0.0 < $1.0 }.map { $0.1 }
             }
-        } catch {
-            flashcards = wordsToProcess.map { Flashcard.stub(for: $0) }
+            var indexed: [(Int, Flashcard)] = []
+            for await pair in group {
+                indexed.append(pair)
+            }
+            return indexed.sorted { $0.0 < $1.0 }.map { $0.1 }
         }
         statusMessage = nil
 

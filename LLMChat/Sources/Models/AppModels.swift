@@ -150,7 +150,7 @@ struct Flashcard: Identifiable {
 
     // STUB
     static func stub(for word: WordEntry) -> Flashcard {
-        let (pVi, pEn) = stubPhonetics[word.english.lowercased()] ?? ("(\(word.english))", "(\(word.english))")
+        let (pVi, pEn) = stubPhonetics[word.english.lowercased()] ?? (word.english, word.english.uppercased())
         return Flashcard(
             id: UUID(),
             wordEntry: word,
