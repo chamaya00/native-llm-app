@@ -41,8 +41,7 @@ actor ImageService {
                 limit: 1
             )
             for try await generated in stream {
-                guard let cgImage = generated.cgImage else { continue }
-                return UIImage(cgImage: cgImage)
+                return UIImage(cgImage: generated.cgImage)
             }
         } catch {
             // Silent degradation — gradient placeholder remains visible
