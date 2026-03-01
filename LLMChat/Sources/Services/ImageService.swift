@@ -34,7 +34,7 @@ actor ImageService {
 #if canImport(ImagePlayground)
         do {
             let creator = try await getOrCreateCreator()
-            let style = ImageCreator.availableStyles.first ?? .animation
+            let style = creator.availableStyles.first ?? .animation
             let stream = creator.images(
                 for: [.text(word.english)],
                 style: style,
