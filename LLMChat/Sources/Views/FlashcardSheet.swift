@@ -194,18 +194,23 @@ private struct FlashcardView: View {
                 Spacer()
             }
 
-            if let img = image {
-                Image(uiImage: img)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(height: 160)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            } else {
-                gradientPlaceholder
-                    .frame(height: 160)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            Group {
+                if let img = image {
+                    Image(uiImage: img)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(height: 160)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .transition(.opacity)
+                } else {
+                    gradientPlaceholder
+                        .frame(height: 160)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.4), value: image != nil)
 
             VStack(spacing: 6) {
                 Text(flashcard.wordEntry.vietnamese)
