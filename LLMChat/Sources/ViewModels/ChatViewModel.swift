@@ -46,6 +46,8 @@ final class ChatViewModel {
     // MARK: - Private
 
     private let llmService = LLMService()
+    private let imageService = ImageService()
+    private var imageGenerationTasks: [Task<Void, Never>] = []
     private var currentTopic: Topic?
 
     // MARK: - Init
@@ -168,9 +170,26 @@ final class ChatViewModel {
         }
         statusMessage = nil
 
+        startImageGeneration(for: flashcards)
+
         withAnimation(.tutorSpring) {
             phase = .flashcardReview
             isShowingFlashcards = true
+        }
+    }
+
+    // MARK: - Image Generation
+
+    private func startImageGeneration(for cards: [Flashcard]) {
+        imageGenerationTasks.forEach { $0.cancel() }
+        imageGenerationTasks = cards.map { card in
+            Task {
+                guard let image = await imageService.generateImage(for: card.wordEntry) else { return }
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    flashcardImages[card.id] = image
+                }
+            }
         }
     }
 
@@ -349,6 +368,8 @@ final class ChatViewModel {
     // MARK: - Conversation Reset
 
     func clearConversation() {
+        imageGenerationTasks.forEach { $0.cancel() }
+        imageGenerationTasks = []
         messages = []
         errorMessage = nil
         streamingContent = ""
