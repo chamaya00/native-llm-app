@@ -49,11 +49,11 @@ struct GeneratedPracticeRound {
 struct GeneratedExercise {
     @Guide(description: "Exercise type", .anyOf(["fillBlank", "multipleChoice", "translate"]))
     var type: String
-    @Guide(description: "Exercise prompt shown to the student in Vietnamese or English")
+    @Guide(description: "Exercise prompt shown to the student in Vietnamese (asking about the English word)")
     var prompt: String
-    @Guide(description: "The correct answer string")
+    @Guide(description: "The correct answer in English (the target language being learned)")
     var correctAnswer: String
-    @Guide(description: "4 multiple choice options (include correct answer in list)", .count(4))
+    @Guide(description: "4 multiple choice options in English (the target language), include correct answer in list", .count(4))
     var options: [String]
 }
 
