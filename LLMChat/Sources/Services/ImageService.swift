@@ -34,9 +34,17 @@ actor ImageService {
 #if canImport(ImagePlayground)
         do {
             let creator = try await getOrCreateCreator()
-            let style = creator.availableStyles.first ?? .animation
+            // Prefer the animation style for a cartoonish, kid-friendly look.
+            let style = creator.availableStyles.first(where: { $0 == .animation }) ?? .animation
             let stream = creator.images(
-                for: [.text(word.english)],
+                for: [
+                    .text(word.english),
+                    .text("cute cartoon"),
+                    .text("colorful"),
+                    .text("kid friendly"),
+                    .text("friendly characters"),
+                    .text("safe for children"),
+                ],
                 style: style,
                 limit: 1
             )
