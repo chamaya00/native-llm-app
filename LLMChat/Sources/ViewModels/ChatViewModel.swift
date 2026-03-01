@@ -118,12 +118,10 @@ final class ChatViewModel {
         streamingContent = ""
         isGenerating = false
 
-        let name = learnerProfile?.name ?? "bạn"
-        do {
-            currentWords = try await llmService.streamWords(topic: topic, learnerName: name)
-        } catch {
-            currentWords = WordEntry.stubWords(for: topic)
-        }
+        // Use hardcoded starter words for now.
+        // TODO: replace with LLM generation once user history is implemented:
+        //   currentWords = try await llmService.streamWords(topic: topic, learnerName: name)
+        currentWords = WordEntry.stubWords(for: topic)
         selectedWords = []
         statusMessage = nil
 
