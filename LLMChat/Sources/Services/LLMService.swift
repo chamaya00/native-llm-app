@@ -19,7 +19,7 @@ enum LLMError: LocalizedError {
         case .unsupportedDevice:
             return "This device does not support on-device AI. iOS 26+ with compatible hardware is required."
         case .contextWindowExceeded:
-            return "Cuộc hội thoại đã bị rút gọn do giới hạn ngữ cảnh. Vui lòng gửi lại tin nhắn cuối."
+            return "The conversation was condensed due to context limits. Please resend your last message."
         }
     }
 }
@@ -39,18 +39,28 @@ actor LLMService {
         return new
     }
 
-    // MARK: - Tutor session (one per learning loop; recreated on "Chủ đề mới")
+    // MARK: - Tutor session (one per learning loop; recreated on new topic)
 
     private var tutorSession: LanguageModelSession?
 
-    private func getOrCreateTutorSession(learnerName: String = "bạn") -> LanguageModelSession {
+    private func getOrCreateTutorSession(learnerName: String = "bạn", direction: LanguageDirection = .vietnameseToEnglish) -> LanguageModelSession {
         if let existing = tutorSession { return existing }
-        let instructions = """
-        Bạn là một gia sư tiếng Anh thân thiện dành cho người Việt Nam học tiếng Anh ở trình độ A1–A2.
-        Tên học viên là \(learnerName). Luôn giao tiếp bằng tiếng Việt trừ khi cần dùng tiếng Anh để dạy.
-        Nhiệm vụ của bạn: dạy từ vựng, tạo thẻ học, ra bài tập và đưa ra phản hồi tích cực.
-        Giữ câu ngắn gọn, rõ ràng, phù hợp với học viên A1–A2.
-        """
+        let instructions: String
+        if direction == .vietnameseToEnglish {
+            instructions = """
+            Bạn là một gia sư tiếng Anh thân thiện dành cho người Việt Nam học tiếng Anh ở trình độ A1–A2.
+            Tên học viên là \(learnerName). Luôn giao tiếp bằng tiếng Việt trừ khi cần dùng tiếng Anh để dạy.
+            Nhiệm vụ của bạn: dạy từ vựng, tạo thẻ học, ra bài tập và đưa ra phản hồi tích cực.
+            Giữ câu ngắn gọn, rõ ràng, phù hợp với học viên A1–A2.
+            """
+        } else {
+            instructions = """
+            You are a friendly Vietnamese tutor for English speakers at the A1–A2 level.
+            The learner's name is \(learnerName). Always communicate in English except when teaching Vietnamese words.
+            Your tasks: teach vocabulary, create flashcards, give exercises, and provide positive feedback.
+            Keep sentences short, clear, and appropriate for A1–A2 learners.
+            """
+        }
         let new = LanguageModelSession(instructions: instructions)
         tutorSession = new
         return new
@@ -69,17 +79,17 @@ actor LLMService {
         case .unavailable(let reason):
             switch reason {
             case .deviceNotEligible:
-                return "Thiết bị này không đủ điều kiện cho Apple Intelligence."
+                return "This device is not eligible for Apple Intelligence."
             case .appleIntelligenceNotEnabled:
-                return "Apple Intelligence chưa được bật. Vào Cài đặt > Apple Intelligence & Siri để bật."
+                return "Apple Intelligence is not enabled. Go to Settings > Apple Intelligence & Siri to enable it."
             case .modelNotReady:
-                return "Mô hình AI đang tải xuống. Vui lòng thử lại sau."
+                return "The AI model is downloading. Please try again later."
             @unknown default:
-                return "Mô hình ngôn ngữ on-device không khả dụng."
+                return "The on-device language model is not available."
             }
         }
 #else
-        return "Foundation Models không khả dụng trong SDK hiện tại. Cần thiết bị thực chạy iOS 26 với Apple Intelligence."
+        return "Foundation Models is not available in the current SDK. A real device running iOS 26 with Apple Intelligence is required."
 #endif
     }
 
@@ -135,7 +145,7 @@ actor LLMService {
         }
 #else
         // Simulator stub: emit words progressively so the streaming UI is exercisable.
-        let words = "Đây là phản hồi mô phỏng. Framework Foundation Models cần thiết bị thực chạy iOS 26 với Apple Intelligence.".split(separator: " ")
+        let words = "This is a simulated response. The Foundation Models framework requires a real device running iOS 26 with Apple Intelligence.".split(separator: " ")
         var accumulated = ""
         for word in words {
             try await Task.sleep(nanoseconds: 80_000_000)
@@ -148,11 +158,16 @@ actor LLMService {
     // MARK: - Tutor greeting
 
     /// Stream a personalised greeting from the tutor session.
-    func streamGreeting(learnerName: String, onPartial: @Sendable @escaping (String) -> Void) async throws {
+    func streamGreeting(learnerName: String, direction: LanguageDirection = .vietnameseToEnglish, onPartial: @Sendable @escaping (String) -> Void) async throws {
 #if canImport(FoundationModels)
         guard isAvailable() else { throw LLMError.unsupportedDevice }
-        let s = getOrCreateTutorSession(learnerName: learnerName)
-        let prompt = "Chào mừng \(learnerName) bắt đầu buổi học. Hãy gửi lời chào ngắn gọn bằng tiếng Việt và hỏi họ muốn học từ vựng về chủ đề gì hôm nay."
+        let s = getOrCreateTutorSession(learnerName: learnerName, direction: direction)
+        let prompt: String
+        if direction == .vietnameseToEnglish {
+            prompt = "Chào mừng \(learnerName) bắt đầu buổi học. Hãy gửi lời chào ngắn gọn bằng tiếng Việt và hỏi họ muốn học từ vựng về chủ đề gì hôm nay."
+        } else {
+            prompt = "Welcome \(learnerName) to the lesson. Send a short greeting in English and ask what vocabulary topic they'd like to learn today."
+        }
         do {
             let stream = s.streamResponse(to: prompt)
             for try await partial in stream {
@@ -169,7 +184,12 @@ actor LLMService {
             throw LLMError.generationFailed(error.localizedDescription)
         }
 #else
-        let greeting = "Xin chào \(learnerName)! 👋 Tôi là gia sư tiếng Anh của bạn. Hôm nay bạn muốn học từ vựng về chủ đề gì?"
+        let greeting: String
+        if direction == .vietnameseToEnglish {
+            greeting = "Xin chào \(learnerName)! 👋 Tôi là gia sư tiếng Anh của bạn. Hôm nay bạn muốn học từ vựng về chủ đề gì?"
+        } else {
+            greeting = "Hello \(learnerName)! 👋 I'm your Vietnamese tutor. What vocabulary topic would you like to learn today?"
+        }
         let words = greeting.split(separator: " ")
         var accumulated = ""
         for word in words {
@@ -183,11 +203,16 @@ actor LLMService {
     // MARK: - Phase 2: Tutor structured methods
 
     /// Generate 10 vocabulary words for a topic using guided generation.
-    func streamWords(topic: Topic, learnerName: String = "bạn") async throws -> [WordEntry] {
+    func streamWords(topic: Topic, learnerName: String = "bạn", direction: LanguageDirection = .vietnameseToEnglish) async throws -> [WordEntry] {
 #if canImport(FoundationModels)
         guard isAvailable() else { throw LLMError.unsupportedDevice }
-        let s = getOrCreateTutorSession(learnerName: learnerName)
-        let prompt = "Hãy tạo 10 từ vựng tiếng Anh về chủ đề '\(topic.labelEn)' phù hợp với trình độ A1–A2."
+        let s = getOrCreateTutorSession(learnerName: learnerName, direction: direction)
+        let prompt: String
+        if direction == .vietnameseToEnglish {
+            prompt = "Hãy tạo 10 từ vựng tiếng Anh về chủ đề '\(topic.labelEn)' phù hợp với trình độ A1–A2."
+        } else {
+            prompt = "Generate 10 Vietnamese vocabulary words about the topic '\(topic.labelEn)' suitable for A1–A2 level learners."
+        }
         do {
             let response = try await s.respond(to: prompt, generating: WordSet.self)
             return response.content.words.map { w in
@@ -211,11 +236,16 @@ actor LLMService {
     }
 
     /// Generate a flashcard for a single word. Intended to be called concurrently via `async let`.
-    func generateFlashcard(word: WordEntry, learnerName: String = "bạn") async throws -> Flashcard {
+    func generateFlashcard(word: WordEntry, learnerName: String = "bạn", direction: LanguageDirection = .vietnameseToEnglish) async throws -> Flashcard {
 #if canImport(FoundationModels)
         guard isAvailable() else { throw LLMError.unsupportedDevice }
-        let s = getOrCreateTutorSession(learnerName: learnerName)
-        let prompt = "Tạo thẻ học cho từ '\(word.english)' (nghĩa tiếng Việt: \(word.vietnamese))."
+        let s = getOrCreateTutorSession(learnerName: learnerName, direction: direction)
+        let prompt: String
+        if direction == .vietnameseToEnglish {
+            prompt = "Tạo thẻ học cho từ '\(word.english)' (nghĩa tiếng Việt: \(word.vietnamese))."
+        } else {
+            prompt = "Create a flashcard for the word '\(word.vietnamese)' (English meaning: \(word.english))."
+        }
         do {
             let response = try await s.respond(to: prompt, generating: GeneratedFlashcard.self)
             let fc = response.content
@@ -240,12 +270,17 @@ actor LLMService {
     }
 
     /// Generate 6 exercises (2 per word) for a practice round.
-    func generateExercises(words: [WordEntry], learnerName: String = "bạn") async throws -> [Exercise] {
+    func generateExercises(words: [WordEntry], learnerName: String = "bạn", direction: LanguageDirection = .vietnameseToEnglish) async throws -> [Exercise] {
 #if canImport(FoundationModels)
         guard isAvailable() else { throw LLMError.unsupportedDevice }
-        let s = getOrCreateTutorSession(learnerName: learnerName)
+        let s = getOrCreateTutorSession(learnerName: learnerName, direction: direction)
         let wordList = words.map { "\($0.english) (\($0.vietnamese))" }.joined(separator: ", ")
-        let prompt = "Tạo 6 bài tập (2 cho mỗi từ) để luyện tập: \(wordList). Trộn các loại: fillBlank, multipleChoice, translate. Câu hỏi có thể bằng tiếng Việt, nhưng đáp án và các lựa chọn PHẢI là tiếng Anh."
+        let prompt: String
+        if direction == .vietnameseToEnglish {
+            prompt = "Tạo 6 bài tập (2 cho mỗi từ) để luyện tập: \(wordList). Trộn các loại: fillBlank, multipleChoice, translate. Câu hỏi có thể bằng tiếng Việt, nhưng đáp án và các lựa chọn PHẢI là tiếng Anh."
+        } else {
+            prompt = "Create 6 exercises (2 per word) for practice: \(wordList). Mix types: fillBlank, multipleChoice, translate. Prompts should be in English, but answers and options MUST be in Vietnamese."
+        }
         do {
             let response = try await s.respond(to: prompt, generating: GeneratedPracticeRound.self)
             let limited = Array(words.prefix(3))
@@ -268,7 +303,7 @@ actor LLMService {
             throw LLMError.generationFailed(error.localizedDescription)
         }
 #else
-        return Exercise.stubExercises(for: words)
+        return Exercise.stubExercises(for: words, direction: direction)
 #endif
     }
 
@@ -276,18 +311,28 @@ actor LLMService {
     func generateFeedback(
         results: [ExerciseResult],
         exercises: [Exercise],
-        learnerName: String = "bạn"
+        learnerName: String = "bạn",
+        direction: LanguageDirection = .vietnameseToEnglish
     ) async throws -> RoundFeedback {
 #if canImport(FoundationModels)
         guard isAvailable() else { throw LLMError.unsupportedDevice }
-        let s = getOrCreateTutorSession(learnerName: learnerName)
+        let s = getOrCreateTutorSession(learnerName: learnerName, direction: direction)
         let score = results.filter { $0.isCorrect }.count
         let total = exercises.count
-        let wrongItems = results.filter { !$0.isCorrect }.compactMap { r -> String? in
-            guard let ex = exercises.first(where: { $0.id == r.exerciseId }) else { return nil }
-            return "Câu '\(ex.prompt)': học viên trả lời '\(r.userAnswer)', đáp án đúng '\(ex.correctAnswer)'"
-        }.joined(separator: "; ")
-        let prompt = "Học viên \(learnerName) đạt \(score)/\(total) điểm. Sai: \(wrongItems.isEmpty ? "không có" : wrongItems). Đưa ra nhận xét và sửa lỗi."
+        let prompt: String
+        if direction == .vietnameseToEnglish {
+            let wrongItems = results.filter { !$0.isCorrect }.compactMap { r -> String? in
+                guard let ex = exercises.first(where: { $0.id == r.exerciseId }) else { return nil }
+                return "Câu '\(ex.prompt)': học viên trả lời '\(r.userAnswer)', đáp án đúng '\(ex.correctAnswer)'"
+            }.joined(separator: "; ")
+            prompt = "Học viên \(learnerName) đạt \(score)/\(total) điểm. Sai: \(wrongItems.isEmpty ? "không có" : wrongItems). Đưa ra nhận xét và sửa lỗi."
+        } else {
+            let wrongItems = results.filter { !$0.isCorrect }.compactMap { r -> String? in
+                guard let ex = exercises.first(where: { $0.id == r.exerciseId }) else { return nil }
+                return "Question '\(ex.prompt)': student answered '\(r.userAnswer)', correct answer '\(ex.correctAnswer)'"
+            }.joined(separator: "; ")
+            prompt = "Learner \(learnerName) scored \(score)/\(total). Wrong: \(wrongItems.isEmpty ? "none" : wrongItems). Give feedback and corrections."
+        }
         do {
             let response = try await s.respond(to: prompt, generating: GeneratedFeedback.self)
             let gf = response.content
@@ -313,7 +358,7 @@ actor LLMService {
         }
 #else
         let score = results.filter { $0.isCorrect }.count
-        return RoundFeedback.stub(score: score, results: results, exercises: exercises)
+        return RoundFeedback.stub(score: score, results: results, exercises: exercises, direction: direction)
 #endif
     }
 
@@ -327,15 +372,16 @@ actor LLMService {
         return words.map { Flashcard.stub(for: $0) }
     }
 
-    func generateExercisesStub(for words: [WordEntry]) async -> [Exercise] {
-        return Exercise.stubExercises(for: words)
+    func generateExercisesStub(for words: [WordEntry], direction: LanguageDirection = .vietnameseToEnglish) async -> [Exercise] {
+        return Exercise.stubExercises(for: words, direction: direction)
     }
 
     func generateFeedbackStub(
         score: Int,
         results: [ExerciseResult],
-        exercises: [Exercise]
+        exercises: [Exercise],
+        direction: LanguageDirection = .vietnameseToEnglish
     ) async -> RoundFeedback {
-        return RoundFeedback.stub(score: score, results: results, exercises: exercises)
+        return RoundFeedback.stub(score: score, results: results, exercises: exercises, direction: direction)
     }
 }

@@ -5,6 +5,7 @@ struct ExerciseOverlay: View {
     let exerciseIndex: Int
     let totalExercises: Int
     let progress: Double
+    var direction: LanguageDirection = .vietnameseToEnglish
     let onAnswer: (String) -> Void
 
     @State private var selectedAnswer: String = ""
@@ -29,7 +30,9 @@ struct ExerciseOverlay: View {
             .padding(.bottom, 16)
 
             // Exercise counter
-            Text("Bài \(exerciseIndex + 1)/\(totalExercises)")
+            Text(direction == .vietnameseToEnglish
+                 ? "Bai \(exerciseIndex + 1)/\(totalExercises)"
+                 : "Q. \(exerciseIndex + 1)/\(totalExercises)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 8)
@@ -123,7 +126,7 @@ struct ExerciseOverlay: View {
                 .font(.headline)
                 .fixedSize(horizontal: false, vertical: true)
 
-            TextField("Nhập câu trả lời...", text: $typedAnswer)
+            TextField(direction == .vietnameseToEnglish ? "Nhap cau tra loi..." : "Type your answer...", text: $typedAnswer)
                 .textFieldStyle(.plain)
                 .padding(12)
                 .background(Color(.secondarySystemBackground))
@@ -140,7 +143,9 @@ struct ExerciseOverlay: View {
             if showingResult && !lastAnswerCorrect {
                 HStack(spacing: 4) {
                     Image(systemName: "lightbulb.fill").foregroundStyle(.orange)
-                    Text("Đáp án: \(exercise.correctAnswer)")
+                    Text(direction == .vietnameseToEnglish
+                         ? "Dap an: \(exercise.correctAnswer)"
+                         : "Answer: \(exercise.correctAnswer)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -149,7 +154,9 @@ struct ExerciseOverlay: View {
             Button {
                 submitTyped()
             } label: {
-                Text(showingResult ? "Tiếp tục..." : "Kiểm tra")
+                Text(showingResult
+                     ? (direction == .vietnameseToEnglish ? "Tiep tuc..." : "Continue...")
+                     : (direction == .vietnameseToEnglish ? "Kiem tra" : "Check"))
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)

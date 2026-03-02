@@ -1,6 +1,53 @@
 import Foundation
 import UIKit
 
+// MARK: - Language Direction
+
+enum LanguageDirection: String, CaseIterable {
+    case vietnameseToEnglish  // Vietnamese speaker learning English
+    case englishToVietnamese  // English speaker learning Vietnamese
+
+    /// The language the learner already speaks.
+    var nativeLanguageCode: String {
+        switch self {
+        case .vietnameseToEnglish: return "vi"
+        case .englishToVietnamese: return "en"
+        }
+    }
+
+    /// The language the learner is studying.
+    var targetLanguageCode: String {
+        switch self {
+        case .vietnameseToEnglish: return "en"
+        case .englishToVietnamese: return "vi"
+        }
+    }
+
+    /// BCP-47 code for TTS of the target language.
+    var ttsLanguageCode: String {
+        switch self {
+        case .vietnameseToEnglish: return "en-US"
+        case .englishToVietnamese: return "vi-VN"
+        }
+    }
+
+    /// Short label shown in the direction picker.
+    var label: String {
+        switch self {
+        case .vietnameseToEnglish: return "🇻🇳 → 🇬🇧 English"
+        case .englishToVietnamese: return "🇬🇧 → 🇻🇳 Tiếng Việt"
+        }
+    }
+
+    /// Fallback name when learner name is absent.
+    var defaultLearnerName: String {
+        switch self {
+        case .vietnameseToEnglish: return "bạn"
+        case .englishToVietnamese: return "friend"
+        }
+    }
+}
+
 // MARK: - Session Phase
 
 enum SessionPhase: Equatable {
@@ -19,6 +66,7 @@ enum SessionPhase: Equatable {
 
 struct LearnerProfile {
     var name: String
+    var direction: LanguageDirection
 }
 
 // MARK: - Topic
@@ -28,6 +76,10 @@ struct Topic: Identifiable {
     let emoji: String
     let labelVi: String
     let labelEn: String
+
+    func label(for direction: LanguageDirection) -> String {
+        direction == .vietnameseToEnglish ? labelVi : labelEn
+    }
 
     static let defaults: [Topic] = [
         Topic(id: UUID(), emoji: "🍔", labelVi: "Đồ ăn", labelEn: "Food"),
@@ -47,6 +99,16 @@ struct WordEntry: Identifiable {
     let vietnamese: String
     let partOfSpeech: String
     let exampleSentence: String
+
+    /// The word in the learner's native language.
+    func nativeWord(for direction: LanguageDirection) -> String {
+        direction == .vietnameseToEnglish ? vietnamese : english
+    }
+
+    /// The word in the language being learned.
+    func targetWord(for direction: LanguageDirection) -> String {
+        direction == .vietnameseToEnglish ? english : vietnamese
+    }
 
     // Hardcoded starter words (10 nouns per topic).
     // LLM generation will replace this after user history is implemented.
@@ -249,28 +311,47 @@ struct Exercise: Identifiable {
     let wordEntry: WordEntry
 
     // STUB: generate 6 exercises (2 per word, up to 3 words) with mix of types
-    static func stubExercises(for words: [WordEntry]) -> [Exercise] {
+    static func stubExercises(for words: [WordEntry], direction: LanguageDirection = .vietnameseToEnglish) -> [Exercise] {
         var exercises: [Exercise] = []
         let limited = Array(words.prefix(3))
         for word in limited {
-            // Exercise 1: multiple choice
-            exercises.append(Exercise(
-                id: UUID(),
-                type: .multipleChoice,
-                prompt: "'\(word.english)' nghĩa là gì?",
-                correctAnswer: word.vietnamese,
-                options: distractors(correct: word.vietnamese, pool: limited.map { $0.vietnamese }),
-                wordEntry: word
-            ))
-            // Exercise 2: translate
-            exercises.append(Exercise(
-                id: UUID(),
-                type: .translate,
-                prompt: "Dịch sang tiếng Anh: \"\(word.vietnamese)\"",
-                correctAnswer: word.english,
-                options: [],
-                wordEntry: word
-            ))
+            if direction == .vietnameseToEnglish {
+                // Vi→En: show English word, ask for Vietnamese meaning
+                exercises.append(Exercise(
+                    id: UUID(),
+                    type: .multipleChoice,
+                    prompt: "'\(word.english)' nghĩa là gì?",
+                    correctAnswer: word.vietnamese,
+                    options: distractors(correct: word.vietnamese, pool: limited.map { $0.vietnamese }),
+                    wordEntry: word
+                ))
+                exercises.append(Exercise(
+                    id: UUID(),
+                    type: .translate,
+                    prompt: "Dịch sang tiếng Anh: \"\(word.vietnamese)\"",
+                    correctAnswer: word.english,
+                    options: [],
+                    wordEntry: word
+                ))
+            } else {
+                // En→Vi: show Vietnamese word, ask for English meaning
+                exercises.append(Exercise(
+                    id: UUID(),
+                    type: .multipleChoice,
+                    prompt: "What does '\(word.vietnamese)' mean?",
+                    correctAnswer: word.english,
+                    options: distractors(correct: word.english, pool: limited.map { $0.english }),
+                    wordEntry: word
+                ))
+                exercises.append(Exercise(
+                    id: UUID(),
+                    type: .translate,
+                    prompt: "Translate to Vietnamese: \"\(word.english)\"",
+                    correctAnswer: word.vietnamese,
+                    options: [],
+                    wordEntry: word
+                ))
+            }
         }
         return exercises
     }
@@ -317,25 +398,38 @@ struct RoundFeedback {
     }
 
     // STUB
-    static func stub(score: Int, results: [ExerciseResult], exercises: [Exercise]) -> RoundFeedback {
+    static func stub(score: Int, results: [ExerciseResult], exercises: [Exercise], direction: LanguageDirection = .vietnameseToEnglish) -> RoundFeedback {
         let total = exercises.count
         let comment: String
-        if score == total {
-            comment = "Xuất sắc! Bạn trả lời đúng tất cả câu hỏi! 🎉"
-        } else if score >= total / 2 {
-            comment = "Tốt lắm! Bạn trả lời đúng \(score)/\(total) câu. Tiếp tục luyện tập nhé! 💪"
+        if direction == .vietnameseToEnglish {
+            if score == total {
+                comment = "Xuất sắc! Bạn trả lời đúng tất cả câu hỏi! 🎉"
+            } else if score >= total / 2 {
+                comment = "Tốt lắm! Bạn trả lời đúng \(score)/\(total) câu. Tiếp tục luyện tập nhé! 💪"
+            } else {
+                comment = "Cố lên! Bạn trả lời đúng \(score)/\(total) câu. Hãy ôn lại và thử lần nữa! 📖"
+            }
         } else {
-            comment = "Cố lên! Bạn trả lời đúng \(score)/\(total) câu. Hãy ôn lại và thử lần nữa! 📖"
+            if score == total {
+                comment = "Excellent! You got all answers right! 🎉"
+            } else if score >= total / 2 {
+                comment = "Good job! You got \(score)/\(total) correct. Keep practicing! 💪"
+            } else {
+                comment = "Keep going! You got \(score)/\(total) correct. Review and try again! 📖"
+            }
         }
 
         var corrections: [Correction] = []
         for result in results where !result.isCorrect {
             if let exercise = exercises.first(where: { $0.id == result.exerciseId }) {
+                let explanation = direction == .vietnameseToEnglish
+                    ? "Câu trả lời đúng là \"\(exercise.correctAnswer)\"."
+                    : "The correct answer is \"\(exercise.correctAnswer)\"."
                 corrections.append(Correction(
                     prompt: exercise.prompt,
                     studentAnswer: result.userAnswer,
                     correctedAnswer: exercise.correctAnswer,
-                    explanation: "Câu trả lời đúng là \"\(exercise.correctAnswer)\"."
+                    explanation: explanation
                 ))
             }
         }
@@ -356,11 +450,16 @@ enum QuickReplyAction {
 struct QuickReply: Identifiable {
     let id: UUID
     let labelVi: String
+    let labelEn: String
     let action: QuickReplyAction
 
+    func label(for direction: LanguageDirection) -> String {
+        direction == .vietnameseToEnglish ? labelVi : labelEn
+    }
+
     static let postFeedback: [QuickReply] = [
-        QuickReply(id: UUID(), labelVi: "Chủ đề mới", action: .newTopic),
-        QuickReply(id: UUID(), labelVi: "Thêm từ mới", action: .addMoreWords),
-        QuickReply(id: UUID(), labelVi: "Hỏi tự do", action: .freeChat),
+        QuickReply(id: UUID(), labelVi: "Chủ đề mới", labelEn: "New topic", action: .newTopic),
+        QuickReply(id: UUID(), labelVi: "Thêm từ mới", labelEn: "More words", action: .addMoreWords),
+        QuickReply(id: UUID(), labelVi: "Hỏi tự do", labelEn: "Free chat", action: .freeChat),
     ]
 }

@@ -3,6 +3,7 @@ import SwiftUI
 struct WordGridSheet: View {
     let words: [WordEntry]
     @Binding var selectedWords: [WordEntry]
+    var direction: LanguageDirection = .vietnameseToEnglish
     let onConfirm: () -> Void
     let onDismiss: () -> Void
 
@@ -16,6 +17,7 @@ struct WordGridSheet: View {
                         ForEach(words) { word in
                             WordCell(
                                 word: word,
+                                direction: direction,
                                 isSelected: selectedWords.contains(where: { $0.id == word.id })
                             ) {
                                 toggleSelection(word)
@@ -29,11 +31,11 @@ struct WordGridSheet: View {
 
                 confirmBar
             }
-            .navigationTitle("Chọn từ vựng")
+            .navigationTitle(direction == .vietnameseToEnglish ? "Chon tu vung" : "Choose words")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Hủy") { onDismiss() }
+                    Button(direction == .vietnameseToEnglish ? "Huy" : "Cancel") { onDismiss() }
                 }
             }
         }
@@ -46,7 +48,9 @@ struct WordGridSheet: View {
                 .foregroundStyle(.secondary)
 
             Button(action: onConfirm) {
-                Text("Học \(selectedWords.count) từ này")
+                Text(direction == .vietnameseToEnglish
+                     ? "Hoc \(selectedWords.count) tu nay"
+                     : "Learn \(selectedWords.count) words")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
@@ -61,10 +65,18 @@ struct WordGridSheet: View {
     }
 
     private var selectionLabel: String {
-        switch selectedWords.count {
-        case 0: return "Chọn 1–3 từ"
-        case 1: return "Đã chọn 1 từ"
-        default: return "Đã chọn \(selectedWords.count) từ"
+        if direction == .vietnameseToEnglish {
+            switch selectedWords.count {
+            case 0: return "Chon 1\u{2013}3 tu"
+            case 1: return "Da chon 1 tu"
+            default: return "Da chon \(selectedWords.count) tu"
+            }
+        } else {
+            switch selectedWords.count {
+            case 0: return "Select 1\u{2013}3 words"
+            case 1: return "1 word selected"
+            default: return "\(selectedWords.count) words selected"
+            }
         }
     }
 
@@ -85,6 +97,7 @@ struct WordGridSheet: View {
 
 private struct WordCell: View {
     let word: WordEntry
+    var direction: LanguageDirection = .vietnameseToEnglish
     let isSelected: Bool
     let onTap: () -> Void
 
@@ -92,7 +105,7 @@ private struct WordCell: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 3) {
                 HStack {
-                    Text(word.vietnamese)
+                    Text(word.nativeWord(for: direction))
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(isSelected ? .white : .primary)
                     Spacer()
@@ -103,11 +116,13 @@ private struct WordCell: View {
                     }
                 }
 
-                Text(word.english)
+                Text(word.targetWord(for: direction))
                     .font(.footnote)
                     .foregroundStyle(isSelected ? .white.opacity(0.85) : .secondary)
 
-                Text("\(word.partOfSpeech) · \(word.partOfSpeech.partOfSpeechVietnamese)")
+                Text(direction == .vietnameseToEnglish
+                     ? "\(word.partOfSpeech) \u{00B7} \(word.partOfSpeech.partOfSpeechVietnamese)"
+                     : word.partOfSpeech)
                     .font(.caption)
                     .foregroundStyle(isSelected ? .white.opacity(0.65) : Color(.tertiaryLabel))
                     .italic()
@@ -129,15 +144,15 @@ private struct WordCell: View {
 private extension String {
     var partOfSpeechVietnamese: String {
         switch self.lowercased() {
-        case "noun":         return "danh từ"
-        case "verb":         return "động từ"
-        case "adjective":    return "tính từ"
-        case "adverb":       return "trạng từ"
-        case "pronoun":      return "đại từ"
-        case "preposition":  return "giới từ"
-        case "conjunction":  return "liên từ"
-        case "interjection": return "thán từ"
-        case "phrase":       return "cụm từ"
+        case "noun":         return "danh tu"
+        case "verb":         return "dong tu"
+        case "adjective":    return "tinh tu"
+        case "adverb":       return "trang tu"
+        case "pronoun":      return "dai tu"
+        case "preposition":  return "gioi tu"
+        case "conjunction":  return "lien tu"
+        case "interjection": return "than tu"
+        case "phrase":       return "cum tu"
         default:             return self
         }
     }
