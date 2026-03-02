@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FeedbackCard: View {
     let feedback: RoundFeedback
+    var direction: LanguageDirection = .vietnameseToEnglish
     @State private var badgeScale: CGFloat = 0.5
     @State private var progressWidth: CGFloat = 0
 
@@ -32,12 +33,12 @@ struct FeedbackCard: View {
             // Corrections
             if !feedback.corrections.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Xem lại:")
+                    Text(direction == .vietnameseToEnglish ? "Xem lai:" : "Review:")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
 
                     ForEach(Array(feedback.corrections.enumerated()), id: \.offset) { _, correction in
-                        CorrectionRow(correction: correction)
+                        CorrectionRow(correction: correction, direction: direction)
                     }
                 }
             }
@@ -82,6 +83,7 @@ struct FeedbackCard: View {
 
 private struct CorrectionRow: View {
     let correction: RoundFeedback.Correction
+    var direction: LanguageDirection = .vietnameseToEnglish
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -89,7 +91,9 @@ private struct CorrectionRow: View {
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
             HStack(spacing: 6) {
-                Text(correction.studentAnswer.isEmpty ? "(không trả lời)" : correction.studentAnswer)
+                Text(correction.studentAnswer.isEmpty
+                     ? (direction == .vietnameseToEnglish ? "(khong tra loi)" : "(no answer)")
+                     : correction.studentAnswer)
                     .strikethrough()
                     .foregroundStyle(.red)
                 Image(systemName: "arrow.right")

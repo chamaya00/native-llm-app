@@ -4,6 +4,7 @@ import AVFoundation
 struct FlashcardSheet: View {
     let flashcards: [Flashcard]
     let flashcardImages: [UUID: UIImage]
+    var direction: LanguageDirection = .vietnameseToEnglish
     let onFinish: () -> Void
 
     @State private var currentIndex: Int = 0
@@ -20,7 +21,7 @@ struct FlashcardSheet: View {
 
                 ZStack {
                     if flashcards.isEmpty {
-                        Text("Không có thẻ học")
+                        Text(direction == .vietnameseToEnglish ? "Khong co the hoc" : "No flashcards")
                             .foregroundStyle(.secondary)
                     } else {
                         cardStack
@@ -30,7 +31,9 @@ struct FlashcardSheet: View {
 
                 bottomControls
             }
-            .navigationTitle("Thẻ học (\(currentIndex + 1)/\(flashcards.count))")
+            .navigationTitle(direction == .vietnameseToEnglish
+                             ? "The hoc (\(currentIndex + 1)/\(flashcards.count))"
+                             : "Flashcard (\(currentIndex + 1)/\(flashcards.count))")
             .navigationBarTitleDisplayMode(.inline)
         }
     }
@@ -64,7 +67,8 @@ struct FlashcardSheet: View {
         return FlashcardView(
             flashcard: card,
             image: flashcardImages[card.id],
-            isFlipped: isFlipped
+            isFlipped: isFlipped,
+            direction: direction
         )
         .padding(.horizontal, 24)
         .offset(x: dragOffset.width)
@@ -96,9 +100,15 @@ struct FlashcardSheet: View {
 
     private var bottomControls: some View {
         VStack(spacing: 12) {
-            Text(isFlipped ? "Vuốt để tiếp tục" : "Nhấn để xem tiếng Anh")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if direction == .vietnameseToEnglish {
+                Text(isFlipped ? "Vuot de tiep tuc" : "Nhan de xem tieng Anh")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(isFlipped ? "Swipe to continue" : "Tap to see Vietnamese")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             HStack(spacing: 16) {
                 if currentIndex > 0 {
@@ -114,7 +124,9 @@ struct FlashcardSheet: View {
                 Spacer()
 
                 Button(action: onFinish) {
-                    Text(allViewed ? "Luyện tập ngay!" : "Bỏ qua")
+                    Text(allViewed
+                         ? (direction == .vietnameseToEnglish ? "Luyen tap ngay!" : "Practice now!")
+                         : (direction == .vietnameseToEnglish ? "Bo qua" : "Skip"))
                         .font(.headline)
                         .padding(.horizontal, 28)
                         .padding(.vertical, 12)
@@ -169,15 +181,24 @@ private struct FlashcardView: View {
     let flashcard: Flashcard
     let image: UIImage?
     let isFlipped: Bool
+    var direction: LanguageDirection = .vietnameseToEnglish
 
     @StateObject private var speaker = CardSpeaker()
+
+    /// The face shown first is the native language; the flipped face is the target language.
+    private var nativeBadge: (code: String, color: Color) {
+        direction == .vietnameseToEnglish ? ("VN", .red) : ("EN", .blue)
+    }
+    private var targetBadge: (code: String, color: Color) {
+        direction == .vietnameseToEnglish ? ("EN", .blue) : ("VN", .red)
+    }
 
     var body: some View {
         ZStack {
             if !isFlipped {
-                vietnameseFace
+                nativeFace
             } else {
-                englishFace
+                targetFace
                     .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
             }
         }
@@ -185,12 +206,12 @@ private struct FlashcardView: View {
         .animation(.tutorSpring, value: isFlipped)
     }
 
-    // MARK: Vietnamese Face (shown first)
+    // MARK: Native Face (shown first — the word the learner already knows)
 
-    private var vietnameseFace: some View {
+    private var nativeFace: some View {
         VStack(spacing: 20) {
             HStack {
-                languageBadge("VN", color: .red)
+                languageBadge(nativeBadge.code, color: nativeBadge.color)
                 Spacer()
             }
 
@@ -213,7 +234,7 @@ private struct FlashcardView: View {
             .animation(.easeInOut(duration: 0.4), value: image != nil)
 
             VStack(spacing: 6) {
-                Text(flashcard.wordEntry.vietnamese)
+                Text(flashcard.wordEntry.nativeWord(for: direction))
                     .font(.largeTitle.weight(.bold))
                 Text(flashcard.wordEntry.partOfSpeech)
                     .font(.caption)
@@ -223,7 +244,9 @@ private struct FlashcardView: View {
 
             Spacer()
 
-            Text("Nhấn để xem tiếng Anh")
+            Text(direction == .vietnameseToEnglish
+                 ? "Nhan de xem tieng Anh"
+                 : "Tap to see Vietnamese")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
@@ -235,18 +258,18 @@ private struct FlashcardView: View {
         .shadow(color: .black.opacity(0.1), radius: 12, x: 0, y: 4)
     }
 
-    // MARK: English Face (shown after flip)
+    // MARK: Target Face (shown after flip — the word being learned)
 
-    private var englishFace: some View {
+    private var targetFace: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center) {
-                languageBadge("EN", color: .blue)
+                languageBadge(targetBadge.code, color: targetBadge.color)
                 Spacer()
                 speakerButton
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(flashcard.wordEntry.english)
+                Text(flashcard.wordEntry.targetWord(for: direction))
                     .font(.largeTitle.weight(.bold))
                 Text(flashcard.wordEntry.partOfSpeech)
                     .font(.caption)
@@ -285,7 +308,7 @@ private struct FlashcardView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 8) {
-                Label("Gợi nhớ", systemImage: "lightbulb.fill")
+                Label(direction == .vietnameseToEnglish ? "Goi nho" : "Mnemonic", systemImage: "lightbulb.fill")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.orange)
                 Text(flashcard.mnemonicVi)
@@ -313,7 +336,7 @@ private struct FlashcardView: View {
 
     private var speakerButton: some View {
         Button {
-            speaker.speak(flashcard.wordEntry.english)
+            speaker.speak(flashcard.wordEntry.targetWord(for: direction), language: direction.ttsLanguageCode)
         } label: {
             Image(systemName: speaker.isSpeaking ? "speaker.wave.3.fill" : "speaker.2.fill")
                 .font(.title3)
@@ -352,7 +375,7 @@ private struct FlashcardView: View {
             endPoint: .bottomTrailing
         )
         .overlay(
-            Text(flashcard.wordEntry.english.prefix(1).uppercased())
+            Text(flashcard.wordEntry.targetWord(for: direction).prefix(1).uppercased())
                 .font(.system(size: 56, weight: .bold))
                 .foregroundStyle(.white.opacity(0.6))
         )
@@ -370,13 +393,13 @@ private final class CardSpeaker: NSObject, AVSpeechSynthesizerDelegate, Observab
         synthesizer.delegate = self
     }
 
-    func speak(_ text: String) {
+    func speak(_ text: String, language: String = "en-US") {
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
             return
         }
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        utterance.voice = AVSpeechSynthesisVoice(language: language)
         utterance.rate = 0.42
         synthesizer.speak(utterance)
         DispatchQueue.main.async { self.isSpeaking = true }

@@ -12,11 +12,13 @@ struct ChatView: View {
     // Debug: Session Lab accessible via toolbar menu
     @State private var showSessionLab = false
 
+    private var dir: LanguageDirection { viewModel.direction }
+
     var body: some View {
         Group {
             if showSessionLab {
                 TabView {
-                    Tab("Gia sư", systemImage: "graduationcap.fill") {
+                    Tab(dir == .vietnameseToEnglish ? "Gia su" : "Tutor", systemImage: "graduationcap.fill") {
                         tutorView
                     }
                     Tab("Session Lab", systemImage: "slider.horizontal.3") {
@@ -28,8 +30,8 @@ struct ChatView: View {
             }
         }
         .sheet(isPresented: $showNameCapture) {
-            NameCaptureSheet(isPresented: $showNameCapture) { name in
-                viewModel.setLearnerName(name)
+            NameCaptureSheet(isPresented: $showNameCapture) { name, direction in
+                viewModel.setLearnerName(name, direction: direction)
             }
         }
     }
@@ -78,6 +80,7 @@ struct ChatView: View {
                 WordGridSheet(
                     words: viewModel.currentWords,
                     selectedWords: $viewModel.selectedWords,
+                    direction: dir,
                     onConfirm: { Task { await viewModel.confirmWordSelection() } },
                     onDismiss: { viewModel.isShowingWordGrid = false }
                 )
@@ -89,6 +92,7 @@ struct ChatView: View {
                 FlashcardSheet(
                     flashcards: viewModel.flashcards,
                     flashcardImages: viewModel.flashcardImages,
+                    direction: dir,
                     onFinish: { Task { await viewModel.finishFlashcardReview() } }
                 )
                 .presentationDetents([.large])
@@ -101,9 +105,9 @@ struct ChatView: View {
 
     private var navigationTitle: String {
         if let name = viewModel.learnerProfile?.name {
-            return "Xin chào, \(name)!"
+            return dir == .vietnameseToEnglish ? "Xin chao, \(name)!" : "Hello, \(name)!"
         }
-        return "Gia sư tiếng Anh"
+        return dir == .vietnameseToEnglish ? "Gia su tieng Anh" : "Vietnamese Tutor"
     }
 
     @ToolbarContentBuilder
@@ -113,7 +117,7 @@ struct ChatView: View {
                 Button {
                     viewModel.clearConversation()
                 } label: {
-                    Label("Bắt đầu lại", systemImage: "arrow.counterclockwise")
+                    Label(dir == .vietnameseToEnglish ? "Bat dau lai" : "Start over", systemImage: "arrow.counterclockwise")
                 }
                 Button {
                     showSessionLab.toggle()
@@ -139,7 +143,7 @@ struct ChatView: View {
 
                     // Inline feedback card
                     if let feedback = viewModel.currentFeedback {
-                        FeedbackCard(feedback: feedback)
+                        FeedbackCard(feedback: feedback, direction: dir)
                             .padding(.horizontal)
                             .id("feedbackCard")
                             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -193,14 +197,14 @@ struct ChatView: View {
 
             // Topic chips
             if !viewModel.topics.isEmpty {
-                TopicChipBar(topics: viewModel.topics) { topic in
+                TopicChipBar(topics: viewModel.topics, direction: dir) { topic in
                     Task { await viewModel.selectTopic(topic) }
                 }
             }
 
             // Quick reply chips
             if !viewModel.quickReplies.isEmpty {
-                QuickReplyBar(replies: viewModel.quickReplies) { reply in
+                QuickReplyBar(replies: viewModel.quickReplies, direction: dir) { reply in
                     Task { await viewModel.handleQuickReply(reply) }
                 }
             }
@@ -220,6 +224,7 @@ struct ChatView: View {
                 exerciseIndex: viewModel.currentExerciseIndex,
                 totalExercises: viewModel.practiceRound?.exercises.count ?? 1,
                 progress: viewModel.exerciseProgress,
+                direction: dir,
                 onAnswer: { answer in Task { await viewModel.submitAnswer(answer) } }
             )
             .padding(.horizontal, 16)
@@ -236,7 +241,7 @@ struct ChatView: View {
 
     private var inputBar: some View {
         HStack(spacing: 12) {
-            TextField("Nhắn tin...", text: $inputText, axis: .vertical)
+            TextField(dir == .vietnameseToEnglish ? "Nhan tin..." : "Message...", text: $inputText, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...5)
                 .focused($isInputFocused)
@@ -304,11 +309,11 @@ struct UnavailableView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.orange)
 
-            Text("Tính năng chưa khả dụng")
+            Text("Feature unavailable")
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text(reason ?? "Thiết bị này chưa hỗ trợ Apple Intelligence. Cần thiết bị tương thích chạy iOS 26 trở lên.")
+            Text(reason ?? "This device does not support Apple Intelligence. A compatible device running iOS 26 or later is required.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

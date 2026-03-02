@@ -43,6 +43,12 @@ final class ChatViewModel {
     var isShowingFlashcards: Bool = false
     var isShowingExercise: Bool = false
 
+    // MARK: - Convenience
+
+    var direction: LanguageDirection {
+        learnerProfile?.direction ?? .vietnameseToEnglish
+    }
+
     // MARK: - Private
 
     private let llmService = LLMService()
@@ -62,8 +68,8 @@ final class ChatViewModel {
 
     // MARK: - Name Capture Flow
 
-    func setLearnerName(_ name: String) {
-        learnerProfile = LearnerProfile(name: name)
+    func setLearnerName(_ name: String, direction: LanguageDirection) {
+        learnerProfile = LearnerProfile(name: name, direction: direction)
         Task { await startGreeting() }
     }
 
@@ -74,15 +80,21 @@ final class ChatViewModel {
         isGenerating = true
         streamingContent = ""
 
-        let name = learnerProfile?.name ?? "bạn"
+        let name = learnerProfile?.name ?? direction.defaultLearnerName
+        let dir = direction
         do {
-            try await llmService.streamGreeting(learnerName: name) { [weak self] partial in
+            try await llmService.streamGreeting(learnerName: name, direction: dir) { [weak self] partial in
                 Task { @MainActor [weak self] in
                     self?.streamingContent = partial
                 }
             }
         } catch {
-            let fallback = "Xin chào \(name)! 👋 Tôi là gia sư tiếng Anh của bạn. Hôm nay bạn muốn học từ vựng về chủ đề gì?"
+            let fallback: String
+            if dir == .vietnameseToEnglish {
+                fallback = "Xin chào \(name)! 👋 Tôi là gia sư tiếng Anh của bạn. Hôm nay bạn muốn học từ vựng về chủ đề gì?"
+            } else {
+                fallback = "Hello \(name)! 👋 I'm your Vietnamese tutor. What topic would you like to learn vocabulary about today?"
+            }
             streamingContent = fallback
         }
 
@@ -100,19 +112,25 @@ final class ChatViewModel {
 
     func selectTopic(_ topic: Topic) async {
         currentTopic = topic
+        let dir = direction
         withAnimation(.tutorSpring) {
             topics = []
             quickReplies = []
         }
 
-        messages.append(Message(role: .user, content: "\(topic.emoji) \(topic.labelVi)"))
+        messages.append(Message(role: .user, content: "\(topic.emoji) \(topic.label(for: dir))"))
 
         phase = .wordGeneration
-        statusMessage = "✦ Đang tạo từ vựng..."
+        statusMessage = dir == .vietnameseToEnglish ? "✦ Đang tạo từ vựng..." : "✦ Generating vocabulary..."
         isGenerating = true
         streamingContent = ""
 
-        let response = "Hay quá! Chủ đề \(topic.emoji) \(topic.labelVi). Để tôi tìm 10 từ tiếng Anh thú vị cho bạn..."
+        let response: String
+        if dir == .vietnameseToEnglish {
+            response = "Hay quá! Chủ đề \(topic.emoji) \(topic.labelVi). Để tôi tìm 10 từ tiếng Anh thú vị cho bạn..."
+        } else {
+            response = "Great choice! Topic: \(topic.emoji) \(topic.labelEn). Let me find 10 Vietnamese words for you..."
+        }
         await streamFake(response)
         messages.append(Message(role: .assistant, content: response))
         streamingContent = ""
@@ -136,24 +154,32 @@ final class ChatViewModel {
     func confirmWordSelection() async {
         guard !selectedWords.isEmpty else { return }
 
+        let dir = direction
         isShowingWordGrid = false
         phase = .flashcardGeneration
-        statusMessage = "✦ Đang tạo thẻ học..."
+        statusMessage = dir == .vietnameseToEnglish ? "✦ Đang tạo thẻ học..." : "✦ Creating flashcards..."
 
-        let wordsText = selectedWords.map { $0.english }.joined(separator: ", ")
-        messages.append(Message(
-            role: .assistant,
-            content: "Tuyệt vời! Bạn đã chọn: \(wordsText). Tôi đang tạo thẻ học cho bạn... 📚"
-        ))
+        let wordsText = selectedWords.map { $0.targetWord(for: dir) }.joined(separator: ", ")
+        if dir == .vietnameseToEnglish {
+            messages.append(Message(
+                role: .assistant,
+                content: "Tuyệt vời! Bạn đã chọn: \(wordsText). Tôi đang tạo thẻ học cho bạn... 📚"
+            ))
+        } else {
+            messages.append(Message(
+                role: .assistant,
+                content: "Excellent! You've chosen: \(wordsText). I'm creating flashcards for you... 📚"
+            ))
+        }
 
-        let name = learnerProfile?.name ?? "bạn"
+        let name = learnerProfile?.name ?? dir.defaultLearnerName
         let llm = llmService
         let wordsToProcess = selectedWords
         flashcards = await withTaskGroup(of: (Int, Flashcard).self) { group in
             for (i, word) in wordsToProcess.enumerated() {
                 group.addTask {
                     do {
-                        let card = try await llm.generateFlashcard(word: word, learnerName: name)
+                        let card = try await llm.generateFlashcard(word: word, learnerName: name, direction: dir)
                         return (i, card)
                     } catch {
                         return (i, Flashcard.stub(for: word))
@@ -194,20 +220,28 @@ final class ChatViewModel {
     // MARK: - Learning Loop Step 5: Flashcard Review Done
 
     func finishFlashcardReview() async {
+        let dir = direction
         isShowingFlashcards = false
-        statusMessage = "✦ Đang tạo bài tập..."
+        statusMessage = dir == .vietnameseToEnglish ? "✦ Đang tạo bài tập..." : "✦ Creating exercises..."
 
-        messages.append(Message(
-            role: .assistant,
-            content: "Bạn đã xem hết thẻ học rồi! Bây giờ hãy luyện tập để ghi nhớ từ vựng nhé 💪"
-        ))
+        if dir == .vietnameseToEnglish {
+            messages.append(Message(
+                role: .assistant,
+                content: "Bạn đã xem hết thẻ học rồi! Bây giờ hãy luyện tập để ghi nhớ từ vựng nhé 💪"
+            ))
+        } else {
+            messages.append(Message(
+                role: .assistant,
+                content: "You've reviewed all flashcards! Now let's practice to memorize the vocabulary 💪"
+            ))
+        }
 
-        let name = learnerProfile?.name ?? "bạn"
+        let name = learnerProfile?.name ?? dir.defaultLearnerName
         let exercises: [Exercise]
         do {
-            exercises = try await llmService.generateExercises(words: selectedWords, learnerName: name)
+            exercises = try await llmService.generateExercises(words: selectedWords, learnerName: name, direction: dir)
         } catch {
-            exercises = Exercise.stubExercises(for: selectedWords)
+            exercises = Exercise.stubExercises(for: selectedWords, direction: dir)
         }
         practiceRound = PracticeRound(exercises: exercises, results: [])
         currentExerciseIndex = 0
@@ -257,31 +291,40 @@ final class ChatViewModel {
     // MARK: - Learning Loop Step 7: Feedback
 
     private func generateFeedback() async {
+        let dir = direction
         phase = .feedback
-        statusMessage = "✦ Đang tạo nhận xét..."
+        statusMessage = dir == .vietnameseToEnglish ? "✦ Đang tạo nhận xét..." : "✦ Generating feedback..."
 
         guard let round = practiceRound else { return }
         let score = round.results.filter { $0.isCorrect }.count
 
-        let name = learnerProfile?.name ?? "bạn"
+        let name = learnerProfile?.name ?? dir.defaultLearnerName
         let feedback: RoundFeedback
         do {
             feedback = try await llmService.generateFeedback(
                 results: round.results,
                 exercises: round.exercises,
-                learnerName: name
+                learnerName: name,
+                direction: dir
             )
         } catch {
-            feedback = RoundFeedback.stub(score: score, results: round.results, exercises: round.exercises)
+            feedback = RoundFeedback.stub(score: score, results: round.results, exercises: round.exercises, direction: dir)
         }
         statusMessage = nil
         currentFeedback = feedback
 
         let scoreEmoji = score == round.exercises.count ? "🎉" : score >= round.exercises.count / 2 ? "👍" : "📖"
-        messages.append(Message(
-            role: .assistant,
-            content: "\(scoreEmoji) Điểm của bạn: \(score)/\(round.exercises.count)"
-        ))
+        if dir == .vietnameseToEnglish {
+            messages.append(Message(
+                role: .assistant,
+                content: "\(scoreEmoji) Điểm của bạn: \(score)/\(round.exercises.count)"
+            ))
+        } else {
+            messages.append(Message(
+                role: .assistant,
+                content: "\(scoreEmoji) Your score: \(score)/\(round.exercises.count)"
+            ))
+        }
 
         withAnimation(.tutorSpring) {
             quickReplies = QuickReply.postFeedback
@@ -291,6 +334,7 @@ final class ChatViewModel {
     // MARK: - Quick Reply Actions
 
     func handleQuickReply(_ reply: QuickReply) async {
+        let dir = direction
         withAnimation(.tutorSpring) {
             quickReplies = []
         }
@@ -298,12 +342,12 @@ final class ChatViewModel {
 
         switch reply.action {
         case .newTopic:
-            messages.append(Message(role: .user, content: reply.labelVi))
+            messages.append(Message(role: .user, content: reply.label(for: dir)))
             await llmService.resetTutorSession()
             await startGreeting()
 
         case .addMoreWords:
-            messages.append(Message(role: .user, content: reply.labelVi))
+            messages.append(Message(role: .user, content: reply.label(for: dir)))
             if let topic = currentTopic {
                 await selectTopic(topic)
             } else {
@@ -312,7 +356,7 @@ final class ChatViewModel {
             }
 
         case .tryAgain:
-            messages.append(Message(role: .user, content: reply.labelVi))
+            messages.append(Message(role: .user, content: reply.label(for: dir)))
             if let round = practiceRound {
                 practiceRound = PracticeRound(exercises: round.exercises, results: [])
                 currentExerciseIndex = 0
@@ -323,11 +367,18 @@ final class ChatViewModel {
             }
 
         case .freeChat:
-            messages.append(Message(role: .user, content: reply.labelVi))
-            messages.append(Message(
-                role: .assistant,
-                content: "Tất nhiên! Bạn muốn hỏi gì thì cứ hỏi nhé 😊"
-            ))
+            messages.append(Message(role: .user, content: reply.label(for: dir)))
+            if dir == .vietnameseToEnglish {
+                messages.append(Message(
+                    role: .assistant,
+                    content: "Tất nhiên! Bạn muốn hỏi gì thì cứ hỏi nhé 😊"
+                ))
+            } else {
+                messages.append(Message(
+                    role: .assistant,
+                    content: "Of course! Feel free to ask me anything 😊"
+                ))
+            }
             phase = .freeChat
         }
     }
@@ -353,10 +404,18 @@ final class ChatViewModel {
             errorMessage = LLMError.contextWindowExceeded.errorDescription
         } catch {
             errorMessage = error.localizedDescription
-            messages.append(Message(
-                role: .assistant,
-                content: "Xin lỗi, tôi gặp lỗi. Bạn hãy thử lại nhé."
-            ))
+            let dir = direction
+            if dir == .vietnameseToEnglish {
+                messages.append(Message(
+                    role: .assistant,
+                    content: "Xin lỗi, tôi gặp lỗi. Bạn hãy thử lại nhé."
+                ))
+            } else {
+                messages.append(Message(
+                    role: .assistant,
+                    content: "Sorry, I encountered an error. Please try again."
+                ))
+            }
         }
 
         streamingContent = ""

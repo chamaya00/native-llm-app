@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TopicChipBar: View {
     let topics: [Topic]
+    var direction: LanguageDirection = .vietnameseToEnglish
     let onSelect: (Topic) -> Void
 
     var body: some View {
@@ -15,7 +16,7 @@ struct TopicChipBar: View {
                         HStack(spacing: 4) {
                             Text(topic.emoji)
                                 .font(.subheadline)
-                            Text(topic.labelVi)
+                            Text(topic.label(for: direction))
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(.primary)
                         }

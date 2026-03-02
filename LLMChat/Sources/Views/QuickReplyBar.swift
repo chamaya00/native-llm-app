@@ -2,6 +2,7 @@ import SwiftUI
 
 struct QuickReplyBar: View {
     let replies: [QuickReply]
+    var direction: LanguageDirection = .vietnameseToEnglish
     let onSelect: (QuickReply) -> Void
 
     var body: some View {
@@ -12,7 +13,7 @@ struct QuickReplyBar: View {
                         Haptics.impact(.light)
                         onSelect(reply)
                     } label: {
-                        Text(reply.labelVi)
+                        Text(reply.label(for: direction))
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.blue)
                             .padding(.horizontal, 16)
